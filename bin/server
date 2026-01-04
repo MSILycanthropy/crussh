@@ -1,0 +1,18 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "bundler/setup"
+require "crussh"
+
+Sync do
+  config = Crussh::Server::Config.new
+
+  server = Crussh::Server.new(config, "0.0.0.0", 2222)
+
+  puts "Starting Crussh test server..."
+  puts "Test with: ssh -v localhost -p 2222"
+  puts "  (will fail after version exchange - that's expected!)"
+  puts
+
+  server.run
+end

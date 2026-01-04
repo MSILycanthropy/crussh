@@ -1,6 +1,9 @@
 AllCops:
   TargetRubyVersion: 3.2
 
+inherit_gem:
+  rubocop-shopify: rubocop.yml
+
 Style/StringLiterals:
   EnforcedStyle: double_quotes
 

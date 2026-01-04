@@ -4,10 +4,10 @@ require "test_helper"
 
 class TestCrussh < Minitest::Test
   def test_that_it_has_a_version_number
-    refute_nil ::Crussh::VERSION
+    refute_nil(::Crussh::VERSION)
   end
 
   def test_it_does_something_useful
-    assert false
+    assert(false)
   end
 end
