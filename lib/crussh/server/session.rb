@@ -56,38 +56,32 @@ module Crussh
       end
 
       def algorithm_negotiation
-        @client_kexinit_payload = @packet_stream.read_packet
+        @client_kexinit_payload = @packet_stream.read
 
         client_kexinit = Kex::Init.parse(@client_kexinit_payload)
 
         puts "[crussh] Client KEXINIT received"
         puts "[crussh]   kex: #{client_kexinit.kex_algorithms.join(", ")}"
         puts "[crussh]   host_key: #{client_kexinit.server_host_key_algorithms.join(", ")}"
-        puts "[crussh]   cipher: #{client_kexinit.encryption_client_to_server.first(3).join(", ")}..."
+        puts "[crussh]   cipher: #{client_kexinit.cipher_client_to_server.first(3).join(", ")}..."
 
         server_kexinit = Kex::Init.from_preferred(@config.preferred)
         @server_kexinit_payload = server_kexinit.serialize
-        @packet_stream.write_packet(@server_kexinit_payload)
+        @packet_stream.write(@server_kexinit_payload)
 
         puts "[crussh] Server KEXINIT sent"
 
         @algorithms = Negotiator.new(client_kexinit, server_kexinit).negotiate
 
         puts "[crussh] Negotiated algorithms:"
-        puts @algorithms
-      end
-
-      def read_packet
-        length_bytes = read_bytes!(4)
-        packet_length = Transport::Packet.parse_length(length_bytes, @config.maximum_packet_size)
-
-        data = read_bytes!(packet_length)
-
-        Transport::Packet.parse(data)
-      end
-
-      def read_bytes!(n)
-        @socket.read || raise(ConnectionClosed, "Connection closed while reading from socket")
+        puts "  kex: #{@algorithms.kex}"
+        puts "  host_key: #{@algorithms.kex}"
+        puts "  cipher_client_to_server: #{@algorithms.cipher_client_to_server}"
+        puts "  cipher_server_to_client: #{@algorithms.cipher_server_to_client}"
+        puts "  mac_client_to_server: #{@algorithms.mac_client_to_server}"
+        puts "  mac_server_to_client: #{@algorithms.mac_server_to_client}"
+        puts "  compression_client_to_server: #{@algorithms.compression_client_to_server}"
+        puts "  compression_server_to_client: #{@algorithms.compression_server_to_client}"
       end
     end
   end

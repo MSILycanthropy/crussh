@@ -5,8 +5,8 @@ module Crussh
     ALGORITHM_CATEGORIES = [
       :kex_algorithms,
       :server_host_key_algorithms,
-      :encryption_client_to_server,
-      :encryption_server_to_client,
+      :cipher_client_to_server,
+      :cipher_server_to_client,
       :mac_client_to_server,
       :mac_server_to_client,
       :compression_client_to_server,

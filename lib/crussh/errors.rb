@@ -19,4 +19,10 @@ module Crussh
   class ConnectionError < Error; end
   class TimeoutError < ConnectionError; end
   class ConnectionClosed < ConnectionError; end
+
+  class CryptoError < Error; end
+  class UnknownAlgorithm < CryptoError; end
+  class DecryptionError < CryptoError; end
+  class SignatureError < CryptoError; end
+  class KeyError < CryptoError; end
 end

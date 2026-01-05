@@ -6,8 +6,8 @@ module Crussh
       ALGORITHM_FIELDS = [
         :kex_algorithms,
         :server_host_key_algorithms,
-        :encryption_client_to_server,
-        :encryption_server_to_client,
+        :cipher_client_to_server,
+        :cipher_server_to_client,
         :mac_client_to_server,
         :mac_server_to_client,
         :compression_client_to_server,
@@ -27,8 +27,8 @@ module Crussh
           new(
             kex_algorithms: preferred.kex,
             server_host_key_algorithms: preferred.host_key,
-            encryption_client_to_server: preferred.cipher,
-            encryption_server_to_client: preferred.cipher,
+            cipher_client_to_server: preferred.cipher,
+            cipher_server_to_client: preferred.cipher,
             mac_client_to_server: preferred.mac,
             mac_server_to_client: preferred.mac,
             compression_client_to_server: preferred.compression,
@@ -60,8 +60,8 @@ module Crussh
           {
             kex_algorithms: reader.name_list,
             server_host_key_algorithms: reader.name_list,
-            encryption_client_to_server: reader.name_list,
-            encryption_server_to_client: reader.name_list,
+            cipher_client_to_server: reader.name_list,
+            cipher_server_to_client: reader.name_list,
             mac_client_to_server: reader.name_list,
             mac_server_to_client: reader.name_list,
             compression_client_to_server: reader.name_list,
@@ -101,8 +101,8 @@ module Crussh
       def write_name_lists(writer)
         writer.name_list(kex_algorithms)
         writer.name_list(server_host_key_algorithms)
-        writer.name_list(encryption_client_to_server)
-        writer.name_list(encryption_server_to_client)
+        writer.name_list(cipher_client_to_server)
+        writer.name_list(cipher_server_to_client)
         writer.name_list(mac_client_to_server)
         writer.name_list(mac_server_to_client)
         writer.name_list(compression_client_to_server)

@@ -27,27 +27,19 @@ module Crussh
 
   # Algorithm preferences - ordered by preference (first = most preferred)
   class Preferred
-    attr_accessor :kex, :host_key, :cipher, :mac, :compression
-
-    DEFAULT_KEX_ALGS = [
-      "curve25519-sha256",
-      "curve25519-sha256@libssh.org",
-    ].freeze
     DEFAULT_HOST_KEY_ALGS = [
       "ssh-ed25519",
     ].freeze
-    DEFAULT_CIPHER_ALGS = [
-      "chacha20-poly1305@openssh.com",
-    ].freeze
-    DEFAULT_MAC_ALGS = [].freeze
     DEFAULT_COMPRESSION_ALGS = ["none"].freeze
 
     def initialize
-      @kex = DEFAULT_KEX_ALGS
+      @kex = Kex::Algorithms::DEFAULT
       @host_key = DEFAULT_HOST_KEY_ALGS
-      @cipher = DEFAULT_CIPHER_ALGS
-      @mac = DEFAULT_MAC_ALGS
+      @cipher = Cipher::Algorithms::DEFAULT
+      @mac = Mac::Algorithms::DEFAULT
       @compression = DEFAULT_COMPRESSION_ALGS
     end
+
+    attr_accessor :kex, :host_key, :cipher, :mac, :compression
   end
 end

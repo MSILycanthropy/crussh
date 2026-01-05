@@ -8,6 +8,19 @@ module Crussh
       DEFAULT_PACKET_SIZE = 32_768
       DEFAULT_WINDOW_SIZE = 2 * 1024 * 1024
 
+      def initialize
+        @server_id = SshId.new("Crussh_#{VERSION}")
+        @limits = Limits.new
+        @max_packet_size = DEFAULT_PACKET_SIZE
+        @window_size = DEFAULT_WINDOW_SIZE
+        @channel_buffer_size = 10
+        @host_keys = []
+        @preferred = Preferred.new
+        @connection_timeout = 10
+        @auth_rejection_time = 1
+        @inactivity_timeout = nil
+      end
+
       attr_accessor :server_id,
         :limits,
         :max_packet_size,
@@ -24,19 +37,14 @@ module Crussh
         def development
           new
         end
-      end
 
-      def initialize
-        @server_id = SshId.new("Crussh_#{VERSION}")
-        @limits = Limits.new
-        @max_packet_size = DEFAULT_PACKET_SIZE
-        @window_size = DEFAULT_WINDOW_SIZE
-        @channel_buffer_size = 10
-        @host_keys = []
-        @preferred = Preferred.new
-        @connection_timeout = 10
-        @auth_rejection_time = 1
-        @inactivity_timeout = nil
+        def customize
+          instance = new
+
+          yield instance
+
+          instance
+        end
       end
 
       def validate!

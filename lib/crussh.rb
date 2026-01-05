@@ -25,4 +25,15 @@ require_relative "crussh/transport/reader"
 require_relative "crussh/transport/version_exchange"
 require_relative "crussh/transport/writer"
 
-module Crussh; end
+module Crussh
+  Algorithms = Data.define(
+    :kex,
+    :host_key,
+    :cipher_client_to_server,
+    :cipher_server_to_client,
+    :mac_client_to_server,
+    :mac_server_to_client,
+    :compression_client_to_server,
+    :compression_server_to_client,
+  )
+end
