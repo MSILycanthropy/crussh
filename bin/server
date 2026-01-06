@@ -5,7 +5,7 @@ require "bundler/setup"
 require "crussh"
 
 Sync do
-  config = Crussh::Server::Config.new
+  config = Crussh::Server::Config.development
 
   server = Crussh::Server.new(config, "0.0.0.0", 2222)
 

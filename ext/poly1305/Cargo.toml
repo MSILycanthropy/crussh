@@ -1,0 +1,13 @@
+[package]
+name = "poly1305"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+magnus = { version = "0.8", features = ["rb-sys"] }
+poly1305 = "0.8"
+subtle = "2.6.1"

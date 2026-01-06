@@ -32,13 +32,17 @@ Gem::Specification.new do |spec|
   spec.executables = spec.files.grep(%r{\Aexe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
 
+  spec.extensions = ["ext/poly1305/extconf.rb"]
+
   # Uncomment to register a new dependency of your gem
   spec.add_dependency("async", "~> 2.35")
   spec.add_dependency("ed25519", "~> 1.4")
   spec.add_dependency("io-endpoint", "~> 0.16")
-  spec.add_dependency("rbnacl", "~> 5.0.0")
+  spec.add_dependency("rb_sys", "~> 0.9.103")
   spec.add_dependency("ssh_data", "~> 2.0.0")
   spec.add_dependency("x25519", "~> 1.0.10")
+
+  spec.add_dependency("zeitwerk", "~> 2.6e")
 
   # For more information and examples about making a new gem, check out our
   # guide at: https://bundler.io/guides/creating_gem.html

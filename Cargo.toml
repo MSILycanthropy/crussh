@@ -1,0 +1,3 @@
+[workspace]
+members = ["ext/poly1305"]
+resolver = "2"

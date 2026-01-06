@@ -33,9 +33,10 @@ module Crussh
         :inactivity_timeout
 
       class << self
-        # TODO: ensure auto generated host key
         def development
-          new
+          instance = new
+          instance.host_keys << Keys.generate
+          instance
         end
 
         def customize

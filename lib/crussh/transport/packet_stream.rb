@@ -12,6 +12,9 @@ module Crussh
       def initialize(socket, max_packet_size:)
         @reader = Reader.new(socket, max_packet_size)
         @writer = Writer.new(socket)
+
+        @opening_key = nil
+        @sealing_key = nil
       end
 
       def read
@@ -22,25 +25,20 @@ module Crussh
         @writer.write(data)
       end
 
-      def set_negotiated_algorithms(algorithms:)
-        raise NotImplementedError
+      def enable_encryption(opening_key, sealing_key)
+        @reader.enable_encryption(opening_key)
+        @writer.enable_encryption(sealing_key)
       end
 
       class Writer
         def initialize(socket)
           @socket = socket
-
           @sequence = 0
+          @sealing_key = nil
         end
 
         def encrypted?
-          return false if @algorithms.nil?
-
-          algorithm = @algorithms.cipher_server_to_client
-
-          return false if algorithm.nil?
-
-          algorithm != "none"
+          !@sealing_key.nil?
         end
 
         def write(data)
@@ -57,34 +55,43 @@ module Crussh
           @sequence = (@sequence + 1) & 0xFFFFFFFF
         end
 
+        def enable_encryption(sealing_key)
+          @sealing_key = sealing_key
+        end
+
         private
 
         def write_encrypted(data)
-          raise NotImplementedError
+          padded = pad(data)
+
+          length_bytes = [padded.bytesize].pack("N")
+          encrypted_length = @sealing_key.encrypt_length(@sequence, length_bytes)
+
+          ciphertext, tag = @sealing_key.seal(@sequence, encrypted_length, padded)
+
+          @socket.write(encrypted_length + ciphertext + tag)
         end
 
         def write_unencrypted(data)
-          packet = pad_and_align(data)
+          padded = pad(data)
+          packet = [padded.bytesize].pack("N") + padded
 
           @socket.write(packet)
         end
 
-        def pad_and_align(data)
+        def pad(data)
           data = data.b
           payload_length = data.bytesize
 
-          unpadded = 1 + MIN_PADDING + payload_length
-          padding_length = (BLOCK_SIZE - (unpadded % BLOCK_SIZE)) % BLOCK_SIZE
-          padding_length += BLOCK_SIZE if padding_length < MIN_PADDING
+          min_total = 1 + payload_length + MIN_PADDING
+          min_total += 4 unless encrypted?
+
+          extra = (BLOCK_SIZE - (min_total % BLOCK_SIZE)) % BLOCK_SIZE
+          padding_length = MIN_PADDING + extra
 
           padding_bytes = SecureRandom.random_bytes(padding_length)
 
-          packet_length = 1 + payload_length + padding_length
-
-          [packet_length].pack("N") +
-            [padding_length].pack("C") +
-            data +
-            padding_bytes
+          [padding_length].pack("C") + data + padding_bytes
         end
       end
 
@@ -97,13 +104,7 @@ module Crussh
         end
 
         def encrypted?
-          return false if @algorithms.nil?
-
-          algorithm = @algorithms.cipher_client_to_server
-
-          return false if algorithm.nil?
-
-          algorithm != "none"
+          !@opening_key.nil?
         end
 
         def read
@@ -122,6 +123,10 @@ module Crussh
           @sequence = (@sequence + 1) & 0xFFFFFFFF
         end
 
+        def enable_encryption(opening_key)
+          @opening_key = opening_key
+        end
+
         private
 
         def read_unencrypted
@@ -136,8 +141,18 @@ module Crussh
           unwrap(data)
         end
 
-        def read_encrypted_packet
-          raise NotImplementedError
+        def read_encrypted
+          encrypted_length = read_bytes!(4)
+
+          length_bytes = @opening_key.decrypt_length(@sequence, encrypted_length)
+          packet_length = length_bytes.unpack1("N")
+
+          ciphertext = read_bytes!(packet_length)
+          tag = read_bytes!(16)
+
+          plaintext = @opening_key.open(@sequence, encrypted_length, ciphertext, tag)
+
+          unwrap(plaintext)
         end
 
         def unwrap(data)

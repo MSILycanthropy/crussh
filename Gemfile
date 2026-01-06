@@ -8,5 +8,7 @@ gemspec
 gem "irb"
 gem "minitest"
 gem "rake"
+gem "rake-compiler"
+
 gem "rubocop"
 gem "rubocop-shopify"

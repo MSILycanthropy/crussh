@@ -24,22 +24,4 @@ module Crussh
       @rekey_time_limit = rekey_time_limit
     end
   end
-
-  # Algorithm preferences - ordered by preference (first = most preferred)
-  class Preferred
-    DEFAULT_HOST_KEY_ALGS = [
-      "ssh-ed25519",
-    ].freeze
-    DEFAULT_COMPRESSION_ALGS = ["none"].freeze
-
-    def initialize
-      @kex = Kex::Algorithms::DEFAULT
-      @host_key = DEFAULT_HOST_KEY_ALGS
-      @cipher = Cipher::Algorithms::DEFAULT
-      @mac = Mac::Algorithms::DEFAULT
-      @compression = DEFAULT_COMPRESSION_ALGS
-    end
-
-    attr_accessor :kex, :host_key, :cipher, :mac, :compression
-  end
 end
