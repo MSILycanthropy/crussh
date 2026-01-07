@@ -24,16 +24,11 @@ module Crussh
         algorithm_negotiation
         key_exchange
 
-        puts "[crussh] Handshake complete"
+        Logger.info(self, "Handshake complete")
 
         service_request
-      rescue ProtocolError => e
-        puts "[crussh] Protocol error: #{e.message}"
-      rescue ConnectionClosed => e
-        puts "[crussh] Connection closed: #{e.message}"
       rescue StandardError => e
-        puts "[crussh] Error: #{e.class}: #{e.message}"
-        puts e.backtrace.first(5).join("\n")
+        Logger.error(self, "Error", e)
       ensure
         close
       end
@@ -41,8 +36,7 @@ module Crussh
       def close
         @socket.close unless @socket.closed?
       rescue StandardError => e
-        puts "[crussh] Error: #{e.class}: #{e.message}"
-        puts e.backtrace.first(5).join("\n")
+        Logger.error(self, "Error", e)
       end
 
       def host_key
@@ -58,10 +52,12 @@ module Crussh
 
         @client_version = exchange.exchange
 
-        puts "[crussh] Client version: #{@client_version.software_version}"
-        return unless @client_version.comments
-
-        puts "[crussh]   Comments: #{@client_version.comments}"
+        Logger.info(
+          self,
+          "Version exchange complete",
+          client_version: @client_version.software_version,
+          comments: @client_version.comments,
+        )
       end
 
       def algorithm_negotiation
@@ -69,28 +65,35 @@ module Crussh
 
         client_kexinit = Protocol::KexInit.parse(@client_kexinit_payload)
 
-        puts "[crussh] Client KEXINIT received"
-        puts "[crussh]   kex: #{client_kexinit.kex_algorithms.join(", ")}"
-        puts "[crussh]   host_key: #{client_kexinit.server_host_key_algorithms.join(", ")}"
-        puts "[crussh]   cipher: #{client_kexinit.cipher_client_to_server.first(3).join(", ")}..."
+        Logger.debug(
+          self,
+          "Client KEXINIT received",
+          kex: client_kexinit.kex_algorithms,
+          host_key: client_kexinit.server_host_key_algorithms,
+          cipher_c2s: client_kexinit.cipher_client_to_server.first(3),
+          cipher_s2c: client_kexinit.cipher_server_to_client.first(3),
+        )
 
         server_kexinit = Protocol::KexInit.from_preferred(@config.preferred)
         @server_kexinit_payload = server_kexinit.serialize
         @packet_stream.write(@server_kexinit_payload)
 
-        puts "[crussh] Server KEXINIT sent"
+        Logger.debug(self, "Server KEXINIT sent")
 
         @algorithms = Negotiator.new(client_kexinit, server_kexinit).negotiate
 
-        puts "[crussh] Negotiated algorithms:"
-        puts "  kex: #{@algorithms.kex}"
-        puts "  host_key: #{@algorithms.kex}"
-        puts "  cipher_client_to_server: #{@algorithms.cipher_client_to_server}"
-        puts "  cipher_server_to_client: #{@algorithms.cipher_server_to_client}"
-        puts "  mac_client_to_server: #{@algorithms.mac_client_to_server}"
-        puts "  mac_server_to_client: #{@algorithms.mac_server_to_client}"
-        puts "  compression_client_to_server: #{@algorithms.compression_client_to_server}"
-        puts "  compression_server_to_client: #{@algorithms.compression_server_to_client}"
+        Logger.info(
+          self,
+          "Algorithms negotiated",
+          kex: @algorithms.kex,
+          host_key: @algorithms.host_key,
+          cipher_c2s: @algorithms.cipher_client_to_server,
+          cipher_s2c: @algorithms.cipher_server_to_client,
+          mac_c2s: @algorithms.mac_client_to_server,
+          mac_s2c: @algorithms.mac_server_to_client,
+          compression_c2s: @algorithms.compression_client_to_server,
+          compression_s2c: @algorithms.compression_server_to_client,
+        )
       end
 
       def key_exchange
@@ -98,13 +101,16 @@ module Crussh
         kex_dh_init = Protocol::KexEcdhInit.parse(packet)
         client_public = kex_dh_init.public_key
 
-        puts "[crussh] KEX_ECDH_INIT received (#{client_public.bytesize} bytes)"
+        Logger.debug(self, "KEX_ECDH_INIT received", public_key: client_public)
 
         kex_algorithm = Kex.from_name(@algorithms.kex)
         server_public = kex_algorithm.server_dh_reply(client_public)
 
-        puts "[crussh] Generated server public key (#{server_public.bytesize} bytes)"
-        puts "[crussh] Shared secret computed"
+        Logger.debug(
+          self,
+          "Key exchange computed",
+          public_key: server_public,
+        )
 
         exchange = Kex::Exchange.new(
           client_id: @client_version.to_s,
@@ -128,15 +134,15 @@ module Crussh
         )
 
         @packet_stream.write(kex_ecdh_reply.serialize)
-        puts "[crussh] KEX_ECDH_REPLY sent"
+        Logger.debug(self, "KEX_ECDH_REPLY sent")
 
         newkeys = Protocol::NewKeys.new
         @packet_stream.write(newkeys.serialize)
-        puts "[crussh] NEWKEYS sent"
+        Logger.debug(self, "NEWKEYS sent")
 
         packet = @packet_stream.read
         Protocol::NewKeys.parse(packet)
-        puts "[crussh] NEWKEYS received"
+        Logger.debug(self, "Client NEWKEYS received")
 
         @session_id ||= exchange_hash
 
@@ -150,23 +156,25 @@ module Crussh
           mac_s2c: nil,
           we_are_server: true,
         )
-
-        puts "[crussh] Keys derived:"
-        puts "[crussh]   key_send: #{keys[:key_send].bytesize} bytes"
-        puts "[crussh]   key_recv: #{keys[:key_recv].bytesize} bytes"
+        Logger.debug(
+          self,
+          "Keys derived",
+          key_send_size: keys[:key_send],
+          key_recv_size: keys[:key_recv],
+        )
 
         opening_key = cipher.make_opening_key(key: keys[:key_recv])
         sealing_key = cipher.make_sealing_key(key: keys[:key_send])
 
         @packet_stream.enable_encryption(opening_key, sealing_key)
-        puts "[crussh] Encryption enabled"
+        Logger.debug(self, "Encryption enabled", cipher: @algorithms.cipher_server_to_client)
       end
 
       def service_request
         packet = @packet_stream.read
         request = Protocol::ServiceRequest.parse(packet)
 
-        puts "[crussh] Service request: #{request.service_name}"
+        Logger.debug(self, "Service request", service: request.service_name)
 
         unless request.service_name == "ssh-userauth"
           raise ProtocolError, "Unknown service: #{request.service_name}"
@@ -174,6 +182,8 @@ module Crussh
 
         accept = Protocol::ServiceAccept.new(service_name: "ssh-userauth")
         @packet_stream.write(accept.serialize)
+
+        Logger.debug(self, "Service accepted", service: "ssh-userauth")
       end
     end
   end

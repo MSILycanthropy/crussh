@@ -11,7 +11,6 @@ Sync do
 
   puts "Starting Crussh test server..."
   puts "Test with: ssh -v localhost -p 2222"
-  puts "  (will fail after version exchange - that's expected!)"
   puts
 
   server.run

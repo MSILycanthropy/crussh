@@ -47,14 +47,6 @@ module Crussh
       end
 
       def derive_keys(session_id:, exchange_hash:, cipher:, mac_c2s:, mac_s2c:, we_are_server:)
-        # RFC 4253 §7.2 - Key derivation
-        # A = IV client->server
-        # B = IV server->client
-        # C = encryption key client->server
-        # D = encryption key server->client
-        # E = MAC key client->server
-        # F = MAC key server->client
-
         if we_are_server
           {
             iv_send: derive_key("B", cipher.block_size, session_id, exchange_hash),
@@ -85,8 +77,6 @@ module Crussh
         k_encoded = writer.mpint(shared_secret).to_s
 
         key = digest(k_encoded + exchange_hash + letter + session_id)
-
-        # Extend key if needed (RFC 4253 §7.2)
         key += digest(k_encoded + exchange_hash + key) while key.bytesize < needed_length
 
         key[0, needed_length]

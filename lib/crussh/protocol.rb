@@ -27,14 +27,13 @@ module Crussh
     KEXINIT         = 20
     NEWKEYS         = 21
 
-    # http://tools.ietf.org/html/rfc5656#section-7.1
     KEX_ECDH_INIT      = 30
     KEX_ECDH_REPLY     = 31
 
-    KEX_DH_GEX_REQUEST = 34
-    KEX_DH_GEX_GROUP   = 31
-    KEX_DH_GEX_INIT    = 32
-    KEX_DH_GEX_REPLY   = 33
+    USERAUTH_REQUEST = 50
+    USERAUTH_FAILURE = 51
+    USERAUTH_SUCCESS = 52
+    USERAUTH_BANNER  = 53
 
     class Packet
       class << self
@@ -76,6 +75,7 @@ module Crussh
         def read_field(reader, field)
           case field[:type]
           when :raw then reader.read(field[:length])
+          when :remaining then reader.remaining
           else
             reader.send(field[:type])
           end

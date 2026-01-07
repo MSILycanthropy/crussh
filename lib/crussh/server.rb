@@ -17,10 +17,10 @@ module Crussh
     attr_reader :config, :host, :port
 
     def run
-      # @config.validate!
+      @config.validate!
 
-      puts "[crussh] Starting server on #{@host}:#{@port}"
-      puts "[crussh] Server ID: #{@config.server_id}"
+      Logger.info(self, "Starting server", host:, port:)
+      Logger.debug(self, "Server configuration", server_id: @config.server_id.to_s)
 
       Async do
         @endpoint.accept(&method(:accept))
@@ -31,15 +31,15 @@ module Crussh
 
     def accept(socket, address, _task: Async::Task.current)
       peer = format_address(address)
-      puts "[crussh] New connection from #{peer}"
+      Logger.info(self, "New connection", peer: peer)
 
       handler = @handler_class.new
       session = Session.new(socket, config: @config, handler: handler)
       session.start
 
-      puts "[crussh] Session from #{peer} closed"
+      Logger.info(self, "Session closed", peer: peer)
     rescue StandardError => e
-      puts "[crussh] Error handling #{peer}: #{e.message}"
+      Logger.error(self, "Error handling connection", e)
     end
 
     def format_address(address)
