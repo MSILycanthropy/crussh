@@ -30,6 +30,10 @@ module Crussh
         @writer.enable_encryption(sealing_key)
       end
 
+      def last_read_sequence
+        @reander.last_sequence
+      end
+
       class Writer
         def initialize(socket)
           @socket = socket
@@ -101,13 +105,18 @@ module Crussh
           @max_packet_size = max_packet_size
 
           @sequence = 0
+          @last_sequence = 0
         end
+
+        attr_reader :last_sequence
 
         def encrypted?
           !@opening_key.nil?
         end
 
         def read
+          @last_sequence = @sequence
+
           result = if encrypted?
             read_encrypted
           else
@@ -173,14 +182,20 @@ module Crussh
           data = @socket.read(n)
 
           if data.nil?
-            raise ConnectionClosed, "Connection closed"
+            Logger.warn(self, "Connection closed")
+            @socket.close
+            return
           end
 
           if data.bytesize < n
-            raise ConnectionClosed, "Connection closed (got #{data.bytesize}/#{n} bytes)"
+            Logger.warn(self, "Connection closed (got #{data.bytesize}/#{n} bytes)")
+            @socket.close
+            return
           end
 
           data
+        rescue IOError
+          @socket.close
         end
 
         def validate_packet_length!(packet_length)

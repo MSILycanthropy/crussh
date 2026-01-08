@@ -72,24 +72,24 @@ module Crussh
         @filter ||= Filter.new
       end
 
-      def debug(subject, message = nil, **params)
-        Console.debug(subject, message, **filter.apply(params))
+      def debug(subject, message = nil, *args, **params)
+        Console.debug(subject, message, *args, **filter.apply(params))
       end
 
-      def info(subject, message = nil, **params)
-        Console.info(subject, message, **filter.apply(params))
+      def info(subject, message = nil, *args, **params)
+        Console.info(subject, message, *args, **filter.apply(params))
       end
 
-      def warn(subject, message = nil, **params)
-        Console.warn(subject, message, **filter.apply(params))
+      def warn(subject, message = nil, *args, **params)
+        Console.warn(subject, message, *args, **filter.apply(params))
       end
 
-      def error(subject, message = nil, **params)
-        Console.error(subject, message, **filter.apply(params))
+      def error(subject, message = nil, *args, **params)
+        Console.error(subject, message, *args, **filter.apply(params))
       end
 
-      def fatal(subject, message = nil, **params)
-        Console.fatal(subject, message, **filter.apply(params))
+      def fatal(subject, message = nil, *args, **params)
+        Console.fatal(subject, message, *args, **filter.apply(params))
       end
     end
   end

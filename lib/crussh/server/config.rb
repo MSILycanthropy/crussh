@@ -16,6 +16,7 @@ module Crussh
         @channel_buffer_size = 10
         @host_keys = []
         @preferred = Preferred.new
+        @max_auth_attempts = 6
         @connection_timeout = 10
         @auth_rejection_time = 1
         @inactivity_timeout = nil
@@ -28,6 +29,7 @@ module Crussh
         :channel_buffer_size,
         :host_keys,
         :preferred,
+        :max_auth_attempts,
         :connection_timeout,
         :auth_rejection_time,
         :inactivity_timeout

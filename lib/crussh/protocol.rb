@@ -34,6 +34,7 @@ module Crussh
     USERAUTH_FAILURE = 51
     USERAUTH_SUCCESS = 52
     USERAUTH_BANNER  = 53
+    USERAUTH_PK_OK = 60
 
     class Packet
       class << self

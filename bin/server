@@ -4,10 +4,24 @@
 require "bundler/setup"
 require "crussh"
 
+class DevHandler < Crussh::Server::Handler
+  def auth_none(username)
+    true
+  end
+
+  def auth_password(username, password)
+    false
+  end
+
+  def auth_publickey_query(*args)
+    true
+  end
+end
+
 Sync do
   config = Crussh::Server::Config.development
 
-  server = Crussh::Server.new(config, "0.0.0.0", 2222)
+  server = Crussh::Server.new(config, "0.0.0.0", 2222, DevHandler)
 
   puts "Starting Crussh test server..."
   puts "Test with: ssh -v localhost -p 2222"
