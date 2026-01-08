@@ -54,4 +54,8 @@ module Crussh
   class DecryptionError < CryptoError; end
   class SignatureError < CryptoError; end
   class KeyError < CryptoError; end
+
+  class ChannelError < Error; end
+  class ChannelClosed < ChannelError; end
+  class ChannelWindowExhausted < ChannelError; end
 end

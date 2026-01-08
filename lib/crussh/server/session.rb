@@ -3,26 +3,27 @@
 module Crussh
   class Server
     class Session
-      def initialize(socket, config:, handler:)
+      def initialize(socket, server:)
         @socket = socket
-        @config = config
-        @handler = handler
+        @server = server
 
         @packet_stream = Transport::PacketStream.new(socket, max_packet_size: config.max_packet_size)
       end
 
-      attr_reader :client_version, :socket, :config, :handler, :packet_stream, :session_id
+      attr_reader :client_version, :socket, :server, :user
+
+      def config = @server.config
 
       def start
-        transport = Layers::Transport.new(self)
-        transport.run
+        transport = run_layer(Layers::Transport)
         @session_id = transport.session_id
 
-        userauth = Layers::Userauth.new(self)
-        userauth.run
-        @authenticated_user = userauth.authenticated_user
+        userauth = run_layer(Layers::Userauth)
+        @user = userauth.authenticated_user
 
-        Logger.info(self, "Session established", user: @authenticated_user)
+        run_layer(Layers::Connection)
+
+        Logger.info(self, "Session established", user: @user)
       rescue StandardError => e
         Logger.error(self, "Error", e)
       ensure
@@ -39,6 +40,20 @@ module Crussh
         return if @algorithms.nil?
 
         @host_key ||= @config.host_keys.find { |key| key.algorithm == @algorithms.host_key }
+      end
+
+      def read_packet = @packet_stream.read
+      def write_packet(message) = @packet_stream.write(message.serialize)
+      def enable_encryption(...) = @packet_stream.enable_encryption(...)
+
+      def last_read_sequence = @packet_stream.last_read_sequence
+
+      private
+
+      def run_layer(layer)
+        instance = layer.new(self)
+        instance.run
+        instance
       end
     end
   end

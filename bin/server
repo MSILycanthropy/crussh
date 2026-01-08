@@ -4,28 +4,67 @@
 require "bundler/setup"
 require "crussh"
 
-class DevHandler < Crussh::Server::Handler
-  def auth_none(username)
+class DevServer < Crussh::Server
+  configure do |config|
+    config.host = "0.0.0.0"
+    config.port = 2222
+    config.generate_host_keys!
+  end
+
+  banner "Welcome to Crussh!\n\n"
+
+  authenticate :none do |_|
     true
   end
 
-  def auth_password(username, password)
-    false
+  authenticate :publickey do |username, key|
+    Logger.debug(self, "Accepting key", user: username, fingerprint: key.fingerprint)
+    true
   end
 
-  def auth_publickey_query(*args)
-    true
+  def shell(channel)
+    channel.puts "Hello, #{channel.session.user}!"
+    channel.puts "Type 'exit' to quit."
+    channel.puts
+
+    channel.each do |event|
+      case event
+      in Crussh::Channel::Data(data:)
+
+        line = data.strip
+
+        case line
+        when "exit"
+          break
+        when ""
+          # ignore
+        else
+          channel.puts "You said: #{line}"
+        end
+      in Crussh::Channel::EOF | Crussh::Channel::Closed
+        break
+      end
+    end
+
+    channel.puts "Goodbye!"
+    channel.exit_status(0)
+  end
+
+  def exec(channel, command)
+    channel.puts "Executing: #{command}"
+
+    IO.popen(command, err: [:child, :out]) do |io|
+      IO.copy_stream(io, channel)
+    end
+
+    channel.exit_status($CHILD_STATUS.exitstatus)
   end
 end
 
 Sync do
-  config = Crussh::Server::Config.development
-
-  server = Crussh::Server.new(config, "0.0.0.0", 2222, DevHandler)
-
   puts "Starting Crussh test server..."
   puts "Test with: ssh -v localhost -p 2222"
   puts
 
-  server.run
+  DevServer.run
 end

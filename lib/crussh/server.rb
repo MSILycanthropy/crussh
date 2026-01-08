@@ -2,44 +2,145 @@
 
 module Crussh
   class Server
-    DEFAULT_PORT = 22
+    class << self
+      def configure
+        yield config
+      end
 
-    def initialize(config, host, port = DEFAULT_PORT, handler_class = Handler)
-      @config = config
-      @host = host
-      @port = port
-      @handler_class = handler_class
+      def config
+        @config ||= Config.new
+      end
 
-      tcp_endpoint = IO::Endpoint.tcp(host, port)
-      @endpoint = Endpoint.new(tcp_endpoint)
+      def banner(text = nil, &block)
+        return @banner = block if block
+
+        @banner = text
+      end
+
+      def read_banner
+        @banner.is_a?(Proc) ? @banner.call : @banner
+      end
+
+      def authenticate(method, &block)
+        auth_handlers[method] = block
+      end
+
+      def auth_handlers
+        @auth_handlers ||= {}
+      end
+
+      def inherited(subclass)
+        subclass.instance_variable_set(:@config, config.dup)
+        subclass.instance_variable_set(:@auth_handlers, auth_handlers.dup)
+        subclass.instance_variable_set(:@banner, @banner)
+
+        super
+      end
+
+      def run(**options)
+        new(**options).run
+      end
     end
 
-    attr_reader :config, :host, :port
+    def initialize(**config)
+      @config = self.class.config.dup
+
+      config.each do |key, value|
+        @config.public_send(:"#{key}=", value)
+      end
+
+      @config.validate!
+    end
+
+    attr_reader :config
 
     def run
-      @config.validate!
+      Logger.info(self, "Starting server", host: config.host, port: config.port)
 
-      Logger.info(self, "Starting server", host:, port:)
-      Logger.debug(self, "Server configuration", server_id: @config.server_id.to_s)
+      endpoint = IO::Endpoint.tcp(config.host, config.port)
 
-      Async do
-        @endpoint.accept(&method(:accept))
+      Async do |task|
+        endpoint.bind do |server|
+          loop do
+            socket, address = server.accept
+
+            task.with_timeout(config.connection_timeout) do
+              handle_connection(socket, address)
+            end
+          end
+        end
       end
+    end
+
+    def handle_auth(method, *args)
+      handler = self.class.auth_handlers[method]
+      return false if handler.nil?
+
+      handler.call(*args)
+    end
+
+    def auth_methods
+      self.class.auth_handlers.keys
+    end
+
+    def banner
+      self.class.read_banner
+    end
+
+    def accepts_channel?(type)
+      case type
+      when :session
+        respond_to?(:shell) || respond_to?(:exec) || respond_to?(:subsystem)
+      when :direct_tcpip
+        respond_to?(:direct_tcpip)
+      when :forwarded_tcpip
+        respond_to?(:forwarded_tcpip)
+      when :x11
+        respond_to?(:x11)
+      else
+        false
+      end
+    end
+
+    def open_channel?(type, channel, ...)
+      method_name = :"open_#{type}?"
+
+      return true unless respond_to?(method_name)
+
+      send(method_name, channel, ...)
+    end
+
+    def accepts_request?(type, channel, ...)
+      method_name = :"accept_#{type}_request?"
+
+      return type == :pty unless respond_to?(method_name)
+
+      send(method_name, channel, ...)
+    end
+
+    def handle_channel(type, channel, ...)
+      send(type, channel, ...)
     end
 
     private
 
-    def accept(socket, address, _task: Async::Task.current)
+    def handle_connection(socket, address)
       peer = format_address(address)
-      Logger.info(self, "New connection", peer: peer)
 
-      handler = @handler_class.new
-      session = Session.new(socket, config: @config, handler: handler)
+      Logger.info(self, "New connection", peer:)
+
+      session = Session.new(socket, server: self)
       session.start
 
-      Logger.info(self, "Session closed", peer: peer)
-    rescue StandardError => e
-      Logger.error(self, "Error handling connection", e)
+      Logger.info(self, "connection closed", peer:)
+    rescue => e
+      Logger.error(self, "Connection error", error: e.message)
+    ensure
+      begin
+        socket.close
+      rescue
+        nil
+      end
     end
 
     def format_address(address)

@@ -32,16 +32,6 @@ module Crussh
         value
       end
 
-      def uint64
-        ensure_remaining!(8)
-
-        value = @data[@position, 8].unpack1("Q>")
-
-        @position += 8
-
-        value
-      end
-
       def string(max_length: nil)
         length = uint32
 

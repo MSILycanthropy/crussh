@@ -2,7 +2,7 @@
 
 module Crussh
   module Protocol
-    class UserauthBanner < Packet
+    class UserauthBanner < Message
       message_type USERAUTH_BANNER
 
       field :message, :string

@@ -51,10 +51,9 @@ module Crussh
 
       def binary?(value)
         return false if value.empty?
+        return false if value.valid_encoding? && value.match?(/\A[[:print:]\s]*\z/)
 
-        value.encoding == Encoding::BINARY ||
-          !value.valid_encoding? ||
-          value.match?(/[^[:print:]\s]/)
+        true
       end
 
       def format_binary(value)

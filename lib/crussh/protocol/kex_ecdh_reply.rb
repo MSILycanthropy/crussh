@@ -2,7 +2,7 @@
 
 module Crussh
   module Protocol
-    class KexEcdhReply < Packet
+    class KexEcdhReply < Message
       message_type KEX_ECDH_REPLY
 
       field :public_host_key, :string

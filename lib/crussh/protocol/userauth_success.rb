@@ -2,7 +2,7 @@
 
 module Crussh
   module Protocol
-    class UserauthSuccess < Packet
+    class UserauthSuccess < Message
       message_type USERAUTH_SUCCESS
     end
   end

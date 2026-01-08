@@ -2,7 +2,7 @@
 
 module Crussh
   module Protocol
-    class Unimplemented < Packet
+    class Unimplemented < Message
       message_type UNIMPLEMENTED
 
       field :sequence_number, :uint32

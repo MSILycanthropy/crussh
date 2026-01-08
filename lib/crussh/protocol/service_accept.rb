@@ -2,7 +2,7 @@
 
 module Crussh
   module Protocol
-    class ServiceAccept < Packet
+    class ServiceAccept < Message
       message_type SERVICE_ACCEPT
 
       field :service_name, :string

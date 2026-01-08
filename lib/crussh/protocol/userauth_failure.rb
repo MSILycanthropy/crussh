@@ -2,7 +2,7 @@
 
 module Crussh
   module Protocol
-    class UserauthFailure < Packet
+    class UserauthFailure < Message
       message_type USERAUTH_FAILURE
 
       field :authentications, :name_list

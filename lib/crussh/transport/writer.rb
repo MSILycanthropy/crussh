@@ -21,11 +21,6 @@ module Crussh
         self
       end
 
-      def uint64(value)
-        @buffer << [value].pack("Q>")
-        self
-      end
-
       def string(value)
         value = value.b if value.is_a?(String)
         uint32(value.bytesize)
@@ -39,6 +34,11 @@ module Crussh
 
       def raw(bytes)
         @buffer << bytes
+        self
+      end
+
+      def remaining(value)
+        raw(value.b)
         self
       end
 

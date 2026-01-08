@@ -1,20 +1,20 @@
 # frozen_string_literal: true
 
+require "io/stream"
+
 module Crussh
   module Transport
     class PacketStream
       MIN_PADDING = 4
       MAX_PADDING = 255
-      MIN_PACKET_SIZE = 5 # 1 (padding_length) + 0 (payload) + 4 (min padding)
+      MIN_PACKET_SIZE = 5
 
       BLOCK_SIZE = 8
 
       def initialize(socket, max_packet_size:)
-        @reader = Reader.new(socket, max_packet_size)
-        @writer = Writer.new(socket)
-
-        @opening_key = nil
-        @sealing_key = nil
+        @stream = IO::Stream(socket)
+        @reader = Reader.new(@stream, max_packet_size)
+        @writer = Writer.new(@stream)
       end
 
       def read
@@ -31,12 +31,12 @@ module Crussh
       end
 
       def last_read_sequence
-        @reander.last_sequence
+        @reader.last_sequence
       end
 
       class Writer
-        def initialize(socket)
-          @socket = socket
+        def initialize(stream)
+          @stream = stream
           @sequence = 0
           @sealing_key = nil
         end
@@ -55,15 +55,15 @@ module Crussh
           increment_sequence
         end
 
-        def increment_sequence
-          @sequence = (@sequence + 1) & 0xFFFFFFFF
-        end
-
         def enable_encryption(sealing_key)
           @sealing_key = sealing_key
         end
 
         private
+
+        def increment_sequence
+          @sequence = (@sequence + 1) & 0xFFFFFFFF
+        end
 
         def write_encrypted(data)
           padded = pad(data)
@@ -73,14 +73,14 @@ module Crussh
 
           ciphertext, tag = @sealing_key.seal(@sequence, encrypted_length, padded)
 
-          @socket.write(encrypted_length + ciphertext + tag)
+          @stream.write(encrypted_length + ciphertext + tag)
         end
 
         def write_unencrypted(data)
           padded = pad(data)
           packet = [padded.bytesize].pack("N") + padded
 
-          @socket.write(packet)
+          @stream.write(packet)
         end
 
         def pad(data)
@@ -100,8 +100,8 @@ module Crussh
       end
 
       class Reader
-        def initialize(socket, max_packet_size)
-          @socket = socket
+        def initialize(stream, max_packet_size)
+          @stream = stream
           @max_packet_size = max_packet_size
 
           @sequence = 0
@@ -128,36 +128,37 @@ module Crussh
           result
         end
 
-        def increment_sequence
-          @sequence = (@sequence + 1) & 0xFFFFFFFF
-        end
-
         def enable_encryption(opening_key)
           @opening_key = opening_key
         end
 
         private
 
-        def read_unencrypted
-          length_bytes = read_bytes!(4)
+        def increment_sequence
+          @sequence = (@sequence + 1) & 0xFFFFFFFF
+        end
 
+        def read_unencrypted
+          length_bytes = @stream.read_exactly(4)
           packet_length = length_bytes.unpack1("N")
 
           validate_packet_length!(packet_length)
 
-          data = read_bytes!(packet_length)
+          data = @stream.read_exactly(packet_length)
 
           unwrap(data)
         end
 
         def read_encrypted
-          encrypted_length = read_bytes!(4)
+          encrypted_length = @stream.read_exactly(4)
 
           length_bytes = @opening_key.decrypt_length(@sequence, encrypted_length)
           packet_length = length_bytes.unpack1("N")
 
-          ciphertext = read_bytes!(packet_length)
-          tag = read_bytes!(16)
+          validate_packet_length!(packet_length)
+
+          ciphertext = @stream.read_exactly(packet_length)
+          tag = @stream.read_exactly(16)
 
           plaintext = @opening_key.open(@sequence, encrypted_length, ciphertext, tag)
 
@@ -178,38 +179,14 @@ module Crussh
           data.byteslice(1, payload_length)
         end
 
-        def read_bytes!(n)
-          data = @socket.read(n)
-
-          if data.nil?
-            Logger.warn(self, "Connection closed")
-            @socket.close
-            return
-          end
-
-          if data.bytesize < n
-            Logger.warn(self, "Connection closed (got #{data.bytesize}/#{n} bytes)")
-            @socket.close
-            return
-          end
-
-          data
-        rescue IOError
-          @socket.close
-        end
-
         def validate_packet_length!(packet_length)
           if packet_length < MIN_PACKET_SIZE
             raise PacketTooSmall, "Packet length #{packet_length} below minimum #{MIN_PACKET_SIZE}"
           end
 
-          if packet_length > @max_packet_size
-            raise PacketTooLarge, "Packet length #{packet_length} exceeds absolute maximum"
-          end
-
           return if packet_length <= @max_packet_size
 
-          raise PacketTooLarge, "Packet length #{packet_length} exceeds configured maximum #{@max_packet_size}"
+          raise PacketTooLarge, "Packet length #{packet_length} exceeds maximum #{@max_packet_size}"
         end
 
         def validate_padding_length!(padding_length, packet_length)

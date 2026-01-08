@@ -2,7 +2,7 @@
 
 module Crussh
   module Protocol
-    class ServiceRequest < Packet
+    class ServiceRequest < Message
       message_type SERVICE_REQUEST
 
       field :service_name, :string

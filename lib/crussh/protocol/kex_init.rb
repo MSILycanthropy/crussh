@@ -2,7 +2,7 @@
 
 module Crussh
   module Protocol
-    class KexInit < Packet
+    class KexInit < Message
       message_type KEXINIT
 
       field :cookie, :raw, length: 16, default: -> { SecureRandom.random_bytes(16) }

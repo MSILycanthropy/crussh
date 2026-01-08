@@ -4,8 +4,6 @@ module Crussh
   class Server
     module Layers
       class Userauth
-        SUPPORTED_METHODS = ["publickey", "password"].freeze
-
         def initialize(session)
           @session = session
           @authenticated_user = nil
@@ -14,21 +12,30 @@ module Crussh
 
         attr_reader :authenticated_user
 
-        def run
-          service_request
-          send_banner
-          authenticate
+        def run(task: Async::Task.current)
+          timeout = config.auth_timeout || config.connection_timeout
+
+          task.with_timeout(timeout) do
+            service_request
+            send_banner
+            authenticate
+          end
+        rescue Async::TimeoutError
+          Logger.warn(self, "Authentication timeout")
         end
 
         private
 
         def config = @session.config
-        def handler = @session.handler
-        def packet_stream = @session.packet_stream
+        def server = @session.server
         def session_id = @session.session_id
 
+        def supported_methods
+          server.auth_methods.map(&:to_s)
+        end
+
         def service_request
-          packet = packet_stream.read
+          packet = @session.read_packet
           request = Protocol::ServiceRequest.parse(packet)
 
           Logger.debug(self, "Service request", service: request.service_name)
@@ -38,24 +45,24 @@ module Crussh
           end
 
           accept = Protocol::ServiceAccept.new(service_name: "ssh-userauth")
-          packet_stream.write(accept.serialize)
+          @session.write_packet(accept)
 
           Logger.debug(self, "Service accepted", service: "ssh-userauth")
         end
 
         def send_banner
-          banner = handler.auth_banner
+          banner = server.banner
 
           return if banner.nil?
 
           packet = Protocol::UserauthBanner.new(message: banner)
-          packet_stream.write(packet.serialize)
+          @session.write_packet(packet)
           Logger.debug(self, "Banner sent")
         end
 
         def authenticate
           loop do
-            packet = packet_stream.read
+            packet = @session.read_packet
             message_type = packet.getbyte(0)
 
             case message_type
@@ -67,49 +74,9 @@ module Crussh
               return
             else
               Logger.warn(self, "Unknown message type during authentication", message_type:)
-              packet = Packet::Unimplemented.new(sequence_number: packet_stream.last_read_sequence)
-              packet_stream.write(packet)
+              unimplemented = Packet::Unimplemented.new(sequence_number: @session.last_read_sequence)
+              @session.write_packet(unimplemented)
             end
-          end
-        end
-
-        def handle_none(request)
-          handler.auth_none(request.username) ? :success : :failure
-        end
-
-        def handle_password(request)
-          handler.auth_password(request.username, request.password) ? :success : :failure
-        end
-
-        def handle_publickey(request)
-          pk_data = request.public_key_data
-
-          unless pk_data.has_signature?
-            acceptable = handler.auth_publickey_query(
-              request.username,
-              pk_data.algorithm,
-              pk_data.key_blob,
-            )
-
-            if acceptable
-              pk_ok = Protocol::UserauthPkOk.new(
-                algorithm: pk_data.algorithm,
-                key_blob: pk_data.key_blob,
-              )
-              packet_stream.write(pk_ok.serialize)
-
-              Logger.debug(self, "PK_OK sent", algorithm: pk_data.algorithm)
-
-              :pk_ok
-            else
-              :failure
-            end
-          end
-
-          if verify_publickey_signature(request, pk_data)
-            :success
-          else
-            :failure
           end
         end
 
@@ -124,17 +91,7 @@ module Crussh
             method: request.method_name,
           )
 
-          result = case request.method_name
-          when "none"
-            handle_none(request)
-          when "password"
-            handle_password(request)
-          when "publickey"
-            handle_publickey(request)
-          else
-            Logger.warn(self, "Unknown auth method", method: request.method_name)
-            :failure
-          end
+          result = dispatch_auth(request)
 
           case result
           when :success
@@ -144,37 +101,72 @@ module Crussh
             Logger.debug(self, "Public key accepted", user: request.username)
             nil
           when :failure
-            @attempts += 1
-
-            packet = Protocol::UserauthFailure.new(authentications: SUPPORTED_METHODS)
-            packet_stream.write(packet.serialize)
-
-            Logger.debug(
-              self,
-              "Authentication failed",
-              user: request.username,
-              method: request.method_name,
-              attempts: @attempts,
-            )
-
-            if @attempts >= config.max_auth_attempts
-              Logger.warn(
-                self,
-                "Max auth attempts reached",
-                user: request.username,
-                attempts: @attempts,
-              )
-              @session.close
-            end
-
+            handle_failed_auth(request)
             nil
+          end
+        end
+
+        def dispatch_auth(request)
+          method = request.method_name.to_sym
+
+          case method
+          when :none
+            handle_none(request)
+          when :password
+            handle_password(request)
+          when :publickey
+            handle_publickey(request)
+          when :keyboard_interactive
+            handle_keyboard_interactive(request)
+          else
+            Logger.warn(self, "Unknown auth method", method: request.method_name)
+            :failure
+          end
+        end
+
+        def handle_none(request)
+          server.handle_auth(:none, request.username) ? :success : :failure
+        end
+
+        def handle_password(request)
+          server.handle_auth(:password, request.username, request.password) ? :success : :failure
+        end
+
+        def handle_publickey(request)
+          pk_data = request.public_key_data
+          public_key = Keys.parse_public_blob(pk_data.key_blob)
+
+          unless pk_data.has_signature?
+            acceptable = server.handle_auth(:publickey, request.username, public_key)
+
+            if acceptable
+              pk_ok = Protocol::UserauthPkOk.new(
+                algorithm: pk_data.algorithm,
+                key_blob: pk_data.key_blob,
+              )
+              @session.write_packet(pk_ok)
+
+              Logger.debug(self, "PK_OK sent", algorithm: pk_data.algorithm)
+
+              :pk_ok
+            else
+              :failure
+            end
+          end
+
+          signed = build_signed_data(request, pk_data)
+
+          if public_key.verify(signed, pk_data.signature)
+            :success
+          else
+            :failure
           end
         end
 
         def handle_successful_auth(request)
           @authenticated_user = request.username
-          packet_stream.write(Protocol::UserauthSuccess.new.serialize)
-          handler.auth_succeeded(request.username)
+          @session.write_packet(Protocol::UserauthSuccess.new)
+          server.auth_succeeded(request.username) if server.respond_to?(:auth_succeeded)
 
           Logger.info(
             self,
@@ -184,7 +176,32 @@ module Crussh
           )
         end
 
-        def verify_publickey_signature(request, pk_data)
+        def handle_failed_auth(request)
+          @attempts += 1
+
+          packet = Protocol::UserauthFailure.new(authentications: SUPPORTED_METHODS)
+          @session.write_packet(packet)
+
+          Logger.debug(
+            self,
+            "Authentication failed",
+            user: request.username,
+            method: request.method_name,
+            attempts: @attempts,
+          )
+
+          return if @attempts < config.max_auth_attempts
+
+          Logger.warn(
+            self,
+            "Max auth attempts reached",
+            user: request.username,
+            attempts: @attempts,
+          )
+          @session.close
+        end
+
+        def build_signed_data(request, pk_data)
           writer = Crussh::Transport::Writer.new
           writer.string(session_id)
           writer.byte(Protocol::USERAUTH_REQUEST)
@@ -194,16 +211,7 @@ module Crussh
           writer.boolean(true)
           writer.string(pk_data.algorithm)
           writer.string(pk_data.key_blob)
-
-          signed_data = writer.to_s
-
-          handler.auth_publickey(
-            request.username,
-            pk_data.algorithm,
-            pk_data.key_blob,
-            pk_data.signature,
-            signed_data,
-          )
+          writer.to_s
         end
       end
     end

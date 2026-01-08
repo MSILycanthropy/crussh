@@ -2,8 +2,8 @@
 
 module Crussh
   module Protocol
-    class NewKeys < Message
-      message_type NEWKEYS
+    class RequestFailure < Message
+      message_type REQUEST_FAILURE
     end
   end
 end

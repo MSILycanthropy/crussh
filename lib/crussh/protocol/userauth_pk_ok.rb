@@ -2,7 +2,7 @@
 
 module Crussh
   module Protocol
-    class UserauthPkOk < Packet
+    class UserauthPkOk < Message
       message_type USERAUTH_PK_OK
 
       field :algorithm, :string

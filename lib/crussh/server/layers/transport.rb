@@ -25,7 +25,6 @@ module Crussh
 
         def config = @session.config
         def socket = @session.socket
-        def packet_stream = @session.packet_stream
 
         def host_key
           @host_key ||= config.host_keys.find { |key| key.algorithm == @algorithms.host_key }
@@ -45,7 +44,7 @@ module Crussh
         end
 
         def algorithm_negotiation
-          @client_kexinit_payload = packet_stream.read
+          @client_kexinit_payload = @session.read_packet
 
           client_kexinit = Protocol::KexInit.parse(@client_kexinit_payload)
 
@@ -60,7 +59,7 @@ module Crussh
 
           server_kexinit = Protocol::KexInit.from_preferred(config.preferred)
           @server_kexinit_payload = server_kexinit.serialize
-          packet_stream.write(@server_kexinit_payload)
+          @session.write_packet(server_kexinit)
 
           Logger.debug(self, "Server KEXINIT sent")
 
@@ -81,7 +80,7 @@ module Crussh
         end
 
         def key_exchange
-          packet = packet_stream.read
+          packet = @session.read_packet
           kex_dh_init = Protocol::KexEcdhInit.parse(packet)
           client_public = kex_dh_init.public_key
 
@@ -113,14 +112,14 @@ module Crussh
             signature: signature,
           )
 
-          packet_stream.write(kex_ecdh_reply.serialize)
+          @session.write_packet(kex_ecdh_reply)
           Logger.debug(self, "KEX_ECDH_REPLY sent")
 
           newkeys = Protocol::NewKeys.new
-          packet_stream.write(newkeys.serialize)
+          @session.write_packet(newkeys)
           Logger.debug(self, "NEWKEYS sent")
 
-          packet = packet_stream.read
+          packet = @session.read_packet
           Protocol::NewKeys.parse(packet)
           Logger.debug(self, "NEWKEYS received")
 
@@ -147,7 +146,7 @@ module Crussh
           opening_key = cipher.make_opening_key(key: keys[:key_recv])
           sealing_key = cipher.make_sealing_key(key: keys[:key_send])
 
-          packet_stream.enable_encryption(opening_key, sealing_key)
+          @session.enable_encryption(opening_key, sealing_key)
           Logger.info(self, "Encryption enabled", cipher: @algorithms.cipher_server_to_client)
         end
       end

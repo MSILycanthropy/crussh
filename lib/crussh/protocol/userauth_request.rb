@@ -2,7 +2,7 @@
 
 module Crussh
   module Protocol
-    class UserauthRequest < Packet
+    class UserauthRequest < Message
       message_type USERAUTH_REQUEST
 
       field :username, :string
@@ -24,13 +24,15 @@ module Crussh
 
       def password
         return unless password?
+        return @password if @password
 
         reader = Transport::Reader.new(method_data)
         reader.boolean
-        reader.string
+        @password = reader.string
       end
 
       def public_key_data
+        return @public_key_data if @public_key_data
         return unless publickey?
 
         reader = Transport::Reader.new(method_data)
@@ -39,7 +41,7 @@ module Crussh
         key_blob = reader.string
         signature = has_signature && !reader.eof? ? reader.string : nil
 
-        PublicKeyData.new(has_signature, algorithm, key_blob, signature)
+        @public_key_data = PublicKeyData.new(has_signature, algorithm, key_blob, signature)
       end
 
       PublicKeyData = Data.define(:has_signature, :algorithm, :key_blob, :signature) do

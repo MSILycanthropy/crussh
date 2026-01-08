@@ -2,7 +2,7 @@
 
 module Crussh
   module Protocol
-    class KexEcdhInit < Packet
+    class KexEcdhInit < Message
       message_type KEX_ECDH_INIT
 
       field :public_key, :string

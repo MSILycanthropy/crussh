@@ -38,6 +38,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency("async", "~> 2.35")
   spec.add_dependency("ed25519", "~> 1.4")
   spec.add_dependency("io-endpoint", "~> 0.16")
+  spec.add_dependency("io-stream", "~> 0.11")
   spec.add_dependency("rb_sys", "~> 0.9.103")
   spec.add_dependency("ssh_data", "~> 2.0.0")
   spec.add_dependency("x25519", "~> 1.0.10")

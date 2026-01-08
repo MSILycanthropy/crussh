@@ -5,6 +5,7 @@ PATH
       async (~> 2.35)
       ed25519 (~> 1.4)
       io-endpoint (~> 0.16)
+      io-stream (~> 0.11)
       rb_sys (~> 0.9.103)
       ssh_data (~> 2.0.0)
       x25519 (~> 1.0.10)
@@ -35,6 +36,7 @@ GEM
     io-console (0.8.2)
     io-endpoint (0.16.0)
     io-event (1.14.2)
+    io-stream (0.11.1)
     irb (1.16.0)
       pp (>= 0.6.0)
       rdoc (>= 4.0.0)
@@ -127,6 +129,7 @@ CHECKSUMS
   io-console (0.8.2) sha256=d6e3ae7a7cc7574f4b8893b4fca2162e57a825b223a177b7afa236c5ef9814cc
   io-endpoint (0.16.0) sha256=b5517d9d2cde28e32ef0b0e13d4422d172a093760f50aad244d50282e990a114
   io-event (1.14.2) sha256=b0a069190eafe86005c22f7464f744971b5bd82f153740d34e6ab49548d4f613
+  io-stream (0.11.1) sha256=fa5f551fcff99581c1757b9d1cee2c37b124f07d2ca4f40b756a05ab9bd21b87
   irb (1.16.0) sha256=2abe56c9ac947cdcb2f150572904ba798c1e93c890c256f8429981a7675b0806
   json (2.18.0) sha256=b10506aee4183f5cf49e0efc48073d7b75843ce3782c68dbeb763351c08fd505
   language_server-protocol (3.17.0.5) sha256=fd1e39a51a28bf3eec959379985a72e296e9f9acfce46f6a79d31ca8760803cc
