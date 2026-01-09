@@ -42,7 +42,24 @@ module Crussh
         @host_key ||= @config.host_keys.find { |key| key.algorithm == @algorithms.host_key }
       end
 
-      def read_packet = @packet_stream.read
+      def read_packet
+        loop do
+          packet = @packet_stream.read
+          message_type = packet.getbyte(0)
+
+          case message_type
+          when Protocol::IGNORE
+            next
+          when Protocol::DEBUG
+            message = Protocol::Debug.parse(packet)
+            Logger.debug(self, "Client debug", message: message.message) if message.always_display
+            next
+          else
+            return packet
+          end
+        end
+      end
+
       def write_packet(message) = @packet_stream.write(message.serialize)
       def enable_encryption(...) = @packet_stream.enable_encryption(...)
 
