@@ -76,6 +76,11 @@ module Crussh
 
           channel = create_channel(remote_id: message.sender_channel, window_size: message.initial_window_size, max_packet_size: message.maximum_packet_size)
 
+          if channel.nil?
+            send_channel_open_failure(message.sender_channel, :resource_shortage)
+            return
+          end
+
           target = case message.channel_type
           when "direct-tcpip"
             message.direct_tcpip
@@ -97,6 +102,11 @@ module Crussh
         end
 
         def create_channel(remote_id:, window_size:, max_packet_size:)
+          if @channels.size >= config.max_channels_per_session
+            Logger.warn(self, "Channel limit reached", current: @channels.size, max: config.max_channels_per_session)
+            return
+          end
+
           id = @next_channel_id
           @next_channel_id += 1
 
