@@ -176,8 +176,10 @@ module Crussh
           )
         end
 
-        def handle_failed_auth(request)
+        def handle_failed_auth(request, task: Async::Task.current)
           @attempts += 1
+
+          task.sleep(config.auth_rejection_time) if config.auth_rejection_time&.positive?
 
           packet = Protocol::UserauthFailure.new(authentications: SUPPORTED_METHODS)
           @session.write_packet(packet)
