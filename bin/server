@@ -57,7 +57,13 @@ class DevServer < Crussh::Server
       IO.copy_stream(io, channel)
     end
 
-    channel.exit_status($CHILD_STATUS.exitstatus)
+    status = $CHILD_STATUS
+    if status.signaled?
+      channel.exit_signal(Signal.signame(status.termsig), core_dumped: status.coredump?)
+    else
+      channel.exit_status(status.exitstatus)
+    end
+
     channel.close
   end
 end

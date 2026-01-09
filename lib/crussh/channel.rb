@@ -76,6 +76,17 @@ module Crussh
       @session.write_packet(message)
     end
 
+    def exit_signal(signal_name, core_dumped: false, error_message: "", language: "")
+      writer = Transport::Writer.new
+      writer.string(signal_name)
+      writer.boolean(core_dumped)
+      writer.string(error_message)
+      writer.string(language)
+
+      message = Protocol::ChannelRequest.new(recipient_channel: @remote_id, request_type: "exit-signal", want_reply: false, request_data: writer.to_s)
+      @session.write_packet(message)
+    end
+
     def push_event(event) = @reader.push_event(event)
     def adjust_remote_window(bytes) = @writer.adjust_window(bytes)
 
