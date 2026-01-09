@@ -168,6 +168,8 @@ module Crussh
           @session.write_packet(Protocol::UserauthSuccess.new)
           server.auth_succeeded(request.username) if server.respond_to?(:auth_succeeded)
 
+          @session.enable_compression
+
           Logger.info(
             self,
             "Authentication successful",

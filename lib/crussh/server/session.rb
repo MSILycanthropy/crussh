@@ -12,9 +12,11 @@ module Crussh
         @bytes_read = 0
         @bytes_written = 0
         @last_kex_time = Time.now
+        @algorithms = nil
       end
 
       attr_reader :client_version, :socket, :server, :user, :id
+      attr_accessor :algorithms
 
       def config = @server.config
 
@@ -29,10 +31,13 @@ module Crussh
 
         Logger.info(self, "Session established", user: @user)
       rescue NegotiationError => e
+        Logger.error(self, "Negotation Error", e)
         disconnect(:key_exchange_failed, e.message)
       rescue ProtocolError => e
+        Logger.error(self, "Protocol Error", e)
         disconnect(:protocol_error, e.message)
-      rescue StandardError
+      rescue => e
+        Logger.error(self, "Internal Server Error", e)
         disconnect(:by_application, "Internal error")
       ensure
         close
@@ -94,6 +99,21 @@ module Crussh
       def write_raw_packet(message) = @packet_stream.write(message.serialize)
 
       def enable_encryption(...) = @packet_stream.enable_encryption(...)
+
+      def enable_compression
+        return if @algorithms.nil?
+
+        c2s = @algorithms.compression_client_to_server
+        s2c = @algorithms.compression_server_to_client
+
+        return if c2s == Compression::NONE && s2c == Compression::NONE
+
+        read_compressor = Compression.from_name(c2s)
+        write_compressor = Compression.from_name(s2c)
+
+        @packet_stream.enable_compression(read_compressor, write_compressor)
+        Logger.info(self, "Compression enabled", send: s2c, recv: c2s)
+      end
 
       def last_read_sequence = @packet_stream.last_read_sequence
 

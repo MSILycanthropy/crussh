@@ -18,6 +18,8 @@ module Crussh
 
             dispatch(packet)
           end
+        rescue IOError, Errno::ECONNRESET, Crussh::ConnectionClosed => e
+          Logger.debug(self, "Connection closed", reason: e.class.name)
         end
 
         private
@@ -58,6 +60,7 @@ module Crussh
             global_request(packet)
           when Protocol::DISCONNECT
             disconnect(packet)
+            raise ConnectionClosed, "Client disconnected"
           else
             Logger.warn(self, "Unhandled message type", type: message_type)
             message = Protocol::Unimplemented.new(sequence_number: @session.last_read_sequence)
@@ -102,7 +105,7 @@ module Crussh
         end
 
         def create_channel(remote_id:, window_size:, max_packet_size:)
-          if @channels.size >= config.max_channels_per_session
+          if !config.max_channels_per_session.nil? && @channels.size >= config.max_channels_per_session
             Logger.warn(self, "Channel limit reached", current: @channels.size, max: config.max_channels_per_session)
             return
           end

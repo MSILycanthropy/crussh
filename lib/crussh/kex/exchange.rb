@@ -71,11 +71,11 @@ module Crussh
           server_host_key: host_key.public_key_blob,
           client_public: client_public,
           server_public: server_public,
-          shared_secret: kex_algorithm.shared_secret,
+          shared_secret: @kex_algorithm.shared_secret,
         )
 
-        exchange_hash = kex_algorithm.compute_exchange_hash(parameters)
-        signature = host_key.sign(exchange_hash)
+        @exchange_hash = @kex_algorithm.compute_exchange_hash(parameters)
+        signature = host_key.sign(@exchange_hash)
 
         kex_ecdh_reply = Protocol::KexEcdhReply.new(
           algorithm: @algorithms.host_key,
@@ -96,9 +96,9 @@ module Crussh
       def derive_and_enable_keys
         cipher = Cipher.from_name(@algorithms.cipher_server_to_client)
 
-        keys = kex_algorithm.derive_keys(
+        keys = @kex_algorithm.derive_keys(
           session_id: @session_id,
-          exchange_hash: exchange_hash,
+          exchange_hash: @exchange_hash,
           cipher: cipher,
           mac_c2s: nil,
           mac_s2c: nil,
@@ -109,6 +109,7 @@ module Crussh
         sealing_key = cipher.make_sealing_key(key: keys[:key_send])
 
         @session.enable_encryption(opening_key, sealing_key)
+        @session.algorithms = @algorithms
 
         Logger.info(self, "Keys exchanged", cipher: @algorithms.cipher_server_to_client)
       end

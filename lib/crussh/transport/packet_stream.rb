@@ -30,6 +30,11 @@ module Crussh
         @writer.enable_encryption(sealing_key)
       end
 
+      def enable_compression(read_compressor, write_compressor)
+        @reader.enable_compression(read_compressor)
+        @writer.enable_compression(write_compressor)
+      end
+
       def last_read_sequence
         @reader.last_sequence
       end
@@ -39,6 +44,8 @@ module Crussh
           @stream = stream
           @sequence = 0
           @sealing_key = nil
+
+          @compressor = Compression::None.new
         end
 
         def encrypted?
@@ -46,6 +53,8 @@ module Crussh
         end
 
         def write(data)
+          data = @compressor.deflate(data)
+
           if encrypted?
             write_encrypted(data)
           else
@@ -58,6 +67,10 @@ module Crussh
 
         def enable_encryption(sealing_key)
           @sealing_key = sealing_key
+        end
+
+        def enable_compression(compressor)
+          @compressor = compressor
         end
 
         private
@@ -107,6 +120,8 @@ module Crussh
 
           @sequence = 0
           @last_sequence = 0
+
+          @compressor = Compression::None.new
         end
 
         attr_reader :last_sequence
@@ -126,11 +141,15 @@ module Crussh
 
           increment_sequence
 
-          result
+          @compressor.inflate(result)
         end
 
         def enable_encryption(opening_key)
           @opening_key = opening_key
+        end
+
+        def enable_compression(compressor)
+          @compressor = compressor
         end
 
         private

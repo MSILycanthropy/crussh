@@ -25,6 +25,7 @@ module Crussh
         @auth_timeout = nil
         @auth_rejection_time = 1
         @inactivity_timeout = nil
+        @max_channels_per_session = nil
       end
 
       attr_accessor :host,
@@ -41,7 +42,8 @@ module Crussh
         :connection_timeout,
         :auth_timeout,
         :auth_rejection_time,
-        :inactivity_timeout
+        :inactivity_timeout,
+        :max_channels_per_session
 
       def generate_host_keys!
         @host_keys << Keys.generate
