@@ -30,7 +30,6 @@ class DevServer < Crussh::Server
     channel.each do |event|
       case event
       in Crussh::Channel::Data(data:)
-
         line = data.strip
 
         case line
@@ -48,6 +47,7 @@ class DevServer < Crussh::Server
 
     channel.puts "Goodbye!"
     channel.exit_status(0)
+    channel.close
   end
 
   def exec(channel, command)
@@ -58,6 +58,7 @@ class DevServer < Crussh::Server
     end
 
     channel.exit_status($CHILD_STATUS.exitstatus)
+    channel.close
   end
 end
 

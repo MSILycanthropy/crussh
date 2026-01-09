@@ -52,6 +52,7 @@ module Crussh
             write_unencrypted(data)
           end
 
+          @stream.flush
           increment_sequence
         end
 

@@ -64,7 +64,7 @@ module Crussh
           loop do
             socket, address = server.accept
 
-            task.with_timeout(config.connection_timeout) do
+            task.async do
               handle_connection(socket, address)
             end
           end

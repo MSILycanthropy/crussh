@@ -165,12 +165,11 @@ module Crussh
         end
 
         def window_adjust
-          message = Protocol::ChannelClose.parse(packet)
+          message = Protocol::ChannelWindowAdjust.parse(packet)
           channel = @channels[message.recipient_channel]
           return if channel.nil?
 
-          channel.push_event(Channel::Closed.new)
-          server.channel_closed(channel) if server.respond_to?(:channel_closed)
+          channel.adjust_remote_window(message.bytes_to_add)
         end
 
         def channel_request(packet)
@@ -256,7 +255,7 @@ module Crussh
           true
         end
 
-        def subsytem_request(channel, message)
+        def subsystem_request(channel, message)
           return false unless server.respond_to?(:subsystem)
 
           Async do

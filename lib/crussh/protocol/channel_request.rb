@@ -73,7 +73,7 @@ module Crussh
         return unless exec?
 
         reader = Transport::Reader.new(request_data)
-        @comnand = reader.string
+        @command = reader.string
       end
 
       def subsytem_name
