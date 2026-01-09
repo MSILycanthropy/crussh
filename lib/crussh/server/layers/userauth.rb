@@ -182,23 +182,9 @@ module Crussh
           packet = Protocol::UserauthFailure.new(authentications: SUPPORTED_METHODS)
           @session.write_packet(packet)
 
-          Logger.debug(
-            self,
-            "Authentication failed",
-            user: request.username,
-            method: request.method_name,
-            attempts: @attempts,
-          )
-
           return if @attempts < config.max_auth_attempts
 
-          Logger.warn(
-            self,
-            "Max auth attempts reached",
-            user: request.username,
-            attempts: @attempts,
-          )
-          @session.close
+          @session.disconnect(:no_more_auth_methods_available, "Too many authentication failures")
         end
 
         def build_signed_data(request, pk_data)

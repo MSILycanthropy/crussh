@@ -28,14 +28,26 @@ module Crussh
         run_layer(Layers::Connection)
 
         Logger.info(self, "Session established", user: @user)
-      rescue StandardError => e
-        Logger.error(self, "Error", e)
+      rescue NegotiationError => e
+        disconnect(:key_exchange_failed, e.message)
+      rescue ProtocolError => e
+        disconnect(:protocol_error, e.message)
+      rescue StandardError
+        disconnect(:by_application, "Internal error")
       ensure
         close
       end
 
+      def disconnect(reason, description = "")
+        message = Protocol::Disconnect.build(reason, description)
+        write_raw_packet(message)
+        close
+      end
+
       def close
-        @socket.close unless @socket.closed?
+        return if socket.closed?
+
+        @socket.close
       rescue StandardError => e
         Logger.error(self, "Error", e)
       end
