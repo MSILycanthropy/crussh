@@ -23,5 +23,23 @@ module Crussh
       @rekey_read_limit = rekey_read_limit
       @rekey_time_limit = rekey_time_limit
     end
+
+    def over?(read:, written:, time:)
+      over_read?(read) || over_write?(written) || over_time?(time)
+    end
+
+    private
+
+    def over_read?(read)
+      read >= rekey_read_limit
+    end
+
+    def over_write?(written)
+      written >= rekey_write_limit
+    end
+
+    def over_time?(time)
+      (Time.now - time) >= rekey_time_limit
+    end
   end
 end

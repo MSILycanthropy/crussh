@@ -22,7 +22,7 @@ module Crussh
       end
     end
 
-    Exchange = Data.define(
+    Parameters = Data.define(
       :client_id,
       :server_id,
       :client_kexinit,

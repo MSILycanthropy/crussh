@@ -8,15 +8,19 @@ module Crussh
         @server = server
 
         @packet_stream = Transport::PacketStream.new(socket, max_packet_size: config.max_packet_size)
+
+        @bytes_read = 0
+        @bytes_written = 0
+        @last_kex_time = Time.now
       end
 
-      attr_reader :client_version, :socket, :server, :user
+      attr_reader :client_version, :socket, :server, :user, :id
 
       def config = @server.config
 
       def start
         transport = run_layer(Layers::Transport)
-        @session_id = transport.session_id
+        @id = transport.session_id
 
         userauth = run_layer(Layers::Userauth)
         @user = userauth.authenticated_user
@@ -43,8 +47,10 @@ module Crussh
       end
 
       def read_packet
+        start_rekey if rekey?
+
         loop do
-          packet = @packet_stream.read
+          packet = read_raw_packet
           message_type = packet.getbyte(0)
 
           case message_type
@@ -54,18 +60,61 @@ module Crussh
             message = Protocol::Debug.parse(packet)
             Logger.debug(self, "Client debug", message: message.message) if message.always_display
             next
+          when Protocol::KEXINIT
+            rekey(packet)
+            next
           else
+            @bytes_read += packet.bytesize
             return packet
           end
         end
       end
 
-      def write_packet(message) = @packet_stream.write(message.serialize)
+      def write_packet(message)
+        start_rekey if rekey?
+
+        data = message.serialize
+        @bytes_written += data.bytesize
+        @packet_stream.write(data)
+      end
+
+      def read_raw_packet = @packet_stream.read
+      def write_raw_packet(message) = @packet_stream.write(message.serialize)
+
       def enable_encryption(...) = @packet_stream.enable_encryption(...)
 
       def last_read_sequence = @packet_stream.last_read_sequence
 
       private
+
+      def rekey?
+        limits = config.limits
+
+        limits.over?(read: @bytes_read, written: @bytes_written, time: @last_kex_time)
+      end
+
+      def start_rekey
+        Logger.info(self, "Initiating rekey to client")
+
+        kex = Kex::Exchange.new(self)
+        kex.start_rekey
+        reset_rekey_tracking
+      end
+
+      def rekey(client_kexinit_payload)
+        Logger.info(self, "Client initiated rekey")
+
+        kex = Kex::Exchange.new(self)
+        kex.rekey(client_kexinit_payload: client_kexinit_payload)
+
+        Logger.info(self, "Rekey complete")
+      end
+
+      def reset_rekey_tracking
+        @bytes_read = 0
+        @bytes_written = 0
+        @last_kex_time = Time.now
+      end
 
       def run_layer(layer)
         instance = layer.new(self)
