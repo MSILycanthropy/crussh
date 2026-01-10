@@ -159,7 +159,7 @@ module Crussh
         def reset_sequence
           @sequence = 0
           @last_sequence = 0
-          @wrapped = 0
+          @wrapped = false
         end
 
         def sequence_wrapped? = @wrapped

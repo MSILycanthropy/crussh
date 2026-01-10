@@ -21,7 +21,7 @@ module Crussh
       def local_flow_control? = request_type == "xon-xoff"
       def signal? = request_type == "signal"
       def exit_status? = request_type == "exit-status"
-      def exit_signal? = request_Type == "exit-signal"
+      def exit_signal? = request_type == "exit-signal"
 
       def pty
         return @pty_data if @pty_data
@@ -50,7 +50,7 @@ module Crussh
         x11_auth_cookie = reader.string
         x11_screen_number = reader.uint32
 
-        @x11_data = X11.new(single_connection:, x11_auth_protocol:, x11_auth_cookie:, x11_screen_number:)
+        @x11_data = X11.new(single_connection:, auth_protocol: x11_auth_protocol, auth_cookie: x11_auth_cookie, screen_number: x11_screen_number)
       end
       X11 = Data.define(:single_connection, :auth_protocol, :auth_cookie, :screen_number) do
         def single_connection? = single_connection
@@ -77,12 +77,12 @@ module Crussh
         @command = reader.string
       end
 
-      def subsytem_name
-        return @subsytem_name if @subsytem_name
+      def subsystem_name
+        return @subsystem_name if @subsystem_name
         return unless subsystem?
 
         reader = Transport::Reader.new(request_data)
-        @subsytem_name = reader.string
+        @subsystem_name = reader.string
       end
 
       def window_change

@@ -71,11 +71,11 @@ module Crussh
               handle_auth_request(packet)&.then { return }
             when Protocol::DISCONNECT
               Logger.debug(self, "Client disconnected during auth")
-              session.close
+              @session.close
               return
             else
               Logger.warn(self, "Unknown message type during authentication", message_type:)
-              unimplemented = Packet::Unimplemented.new(sequence_number: @session.last_read_sequence)
+              unimplemented = Protocol::Unimplemented.new(sequence_number: @session.last_read_sequence)
               @session.write_packet(unimplemented)
             end
           end

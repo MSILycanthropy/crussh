@@ -9,9 +9,8 @@ module Crussh
         @key = key
       end
 
-      def compute(sequence, data, writer)
-        mac = OpenSSL::HMAC.digest(digest_name, @key, [sequence].pack("N") + data)
-        writer.raw(mac)
+      def compute(sequence, data)
+        OpenSSL::HMAC.digest(digest_name, @key, [sequence].pack("N") + data)
       end
 
       def verify?(sequence, data, mac)
@@ -30,7 +29,7 @@ module Crussh
       NAME = "hmac-sha1"
 
       def key_length = 20
-      def mac_len = 20
+      def mac_length = 20
       def digest_name = "SHA1"
     end
 

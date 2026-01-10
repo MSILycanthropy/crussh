@@ -284,7 +284,7 @@ module Crussh
           channel.push_event(message.signal)
         end
 
-        def x11_request
+        def x11_request(channel, message)
           x11 = message.x11
 
           server.accepts_request?(:x11, channel, single_connection: x11.single_connection, protocol: x11.auth_protocol, cookie: x11.auth_cookie, screen: x11.screen_number)
@@ -345,7 +345,7 @@ module Crussh
           resource_shortage: 4,
         }
         DESCRIPTION_MAP = {
-          administratively_prohibited: "Admininistravely Prohibited",
+          administratively_prohibited: "Administratively Prohibited",
           connect_failed: "Connect failed",
           unknown_channel_type: "Unknown channel type",
           resource_shortage: "No more resources, sorry :(",

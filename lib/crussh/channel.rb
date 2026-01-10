@@ -6,7 +6,7 @@ require "async/semaphore"
 
 module Crussh
   class Channel
-    DEFAULT_WINDOW_SIZE = 2 * 1014 * 1024
+    DEFAULT_WINDOW_SIZE = 2 * 1024 * 1024
     DEFAULT_MAX_PACKET_SIZE = 32_768
 
     Data = ::Data.define(:data)
