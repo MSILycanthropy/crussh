@@ -98,8 +98,7 @@ module Crussh
           when :success
             handle_successful_auth(request)
             true
-          when :pk_ok
-            Logger.debug(self, "Public key accepted", user: request.username)
+          when :pk_ok, :partial
             nil
           when :failure
             handle_failed_auth(request)
@@ -110,27 +109,29 @@ module Crussh
         def dispatch_auth(request)
           method = request.method_name.to_sym
 
-          case method
+          result = case method
           when :none
-            handle_none(request)
+            server.handle_auth(:none, request.username)
           when :password
-            handle_password(request)
+            server.handle_auth(:password, request.username, request.password)
           when :publickey
             handle_publickey(request)
           when :keyboard_interactive
-            :failure
+            Auth.reject
           else
             Logger.warn(self, "Unknown auth method", method: request.method_name)
+            Auth.reject
+          end
+
+          case result
+          when lambda(&:success?)
+            :success
+          when lambda(&:partial?)
+            handle_partial_success(request, result)
+            :partial
+          else
             :failure
           end
-        end
-
-        def handle_none(request)
-          server.handle_auth(:none, request.username) ? :success : :failure
-        end
-
-        def handle_password(request)
-          server.handle_auth(:password, request.username, request.password) ? :success : :failure
         end
 
         def handle_publickey(request)
@@ -177,6 +178,15 @@ module Crussh
             user: request.username,
             method: request.method_name,
           )
+        end
+
+        def handle_partial_success(request, result)
+          methods = result.continue_with.map(&:to_s)
+          packet = Protocol::UserauthFailure.new(
+            authentications: methods,
+            partial_success: true,
+          )
+          @session.write_packet(packet)
         end
 
         def handle_failed_auth(request)

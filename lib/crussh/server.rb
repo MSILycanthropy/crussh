@@ -22,7 +22,7 @@ module Crussh
       end
 
       def authenticate(method, &block)
-        auth_handlers[method] = block
+        auth_handlers[method] = AuthHandler.new(block)
       end
 
       def auth_handlers
@@ -79,7 +79,7 @@ module Crussh
 
     def handle_auth(method, *args)
       handler = self.class.auth_handlers[method]
-      return false if handler.nil?
+      return Auth.reject unless handler
 
       handler.call(*args)
     end
