@@ -31,7 +31,9 @@ module Crussh
 
         perform_full_key_exchange(client_kexinit)
 
-        send_ext_info if client_supports_ext_info?(client_kexinit)
+        if client_supports_ext_info?(client_kexinit)
+          send_ext_info
+        end
       end
 
       def start_rekey
@@ -205,7 +207,7 @@ module Crussh
       end
 
       def client_supports_strict?(client_kexinit)
-        client_kexinit.kex_algorithms.intersect?([STRICT_CLIENT, STRICT_CLIENT_OPENSSH])
+        client_kexinit.kex_algorithms.include?(STRICT_CLIENT)
       end
 
       def client_supports_ext_info?(client_kexinit)

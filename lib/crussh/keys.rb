@@ -16,9 +16,6 @@ module Crussh
       ED25519,
       RSA_SHA512,
       RSA_SHA256,
-      ECDSA_P521,
-      ECDSA_P384,
-      ECDSA_P256,
     ]
 
     class << self

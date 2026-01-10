@@ -56,8 +56,6 @@ module Crussh
     PING = 192
     PONG = 193
 
-    KEX_STRICT_SERVER = "kex-strict-s-v00@openssh.com"
-
     class Message
       class << self
         def message_type(type = nil)

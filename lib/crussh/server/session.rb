@@ -46,7 +46,9 @@ module Crussh
       rescue ProtocolError => e
         Logger.error(self, "Protocol Error", e)
         disconnect(:protocol_error, e.message)
-      rescue => e
+      rescue IOError, Errno::EPIPE, Errno::ECONNRESET, ConnectionClosed => e
+        Logger.debug(self, "Connection closed", reason: e.class.name)
+      rescue StandardError => e
         Logger.error(self, "Internal Server Error", e)
         disconnect(:by_application, "Internal error")
       ensure
@@ -85,7 +87,7 @@ module Crussh
           message_type = packet.getbyte(0)
 
           case message_type
-          when Protocol::IGNORE
+          when Protocol::IGNORE, Protocol::EXT_INFO
             next
           when Protocol::DEBUG
             message = Protocol::Debug.parse(packet)
@@ -152,7 +154,7 @@ module Crussh
         reset_rekey_tracking
       end
 
-      def pong(ping)
+      def pong(packet)
         ping = Protocol::Ping.parse(packet)
         pong = Protocol::Pong.new(data: ping.data)
 

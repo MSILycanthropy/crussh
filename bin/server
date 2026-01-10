@@ -27,21 +27,36 @@ class DevServer < Crussh::Server
     channel.puts "Type 'exit' to quit."
     channel.puts
 
-    channel.each do |event|
-      case event
-      in Crussh::Channel::Data(data:)
-        line = data.strip
+    buffer = +""
 
-        case line
-        when "exit"
-          break
-        when ""
-          # ignore
-        else
-          channel.puts "You said: #{line}"
+    catch(:done) do
+      channel.each do |event|
+        case event
+        in Crussh::Channel::Data(data:)
+          data.each_char do |char|
+            case char
+            when "\u0003"
+              throw(:done)
+            when "\r", "\n"
+              line = buffer.strip
+              buffer = +""
+
+              case line
+              when "exit"
+                throw(:done)
+              when ""
+              else
+                channel.puts "You said: #{line}"
+              end
+            when "\u007F", "\b"
+              buffer = buffer.chop
+            else
+              buffer << char
+            end
+          end
+        in Crussh::Channel::EOF | Crussh::Channel::Closed
+          throw(:done)
         end
-      in Crussh::Channel::EOF | Crussh::Channel::Closed
-        break
       end
     end
 

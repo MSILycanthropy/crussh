@@ -3,8 +3,6 @@
 module Crussh
   module Protocol
     class ExtInfo
-      message_type EXT_INFO
-
       def initialize(extensions: {})
         @extensions = extensions
       end

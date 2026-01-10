@@ -11,9 +11,6 @@ module Crussh
     DEFAULT = [
       HMAC_SHA512_ETM,
       HMAC_SHA256_ETM,
-      HMAC_SHA512,
-      HMAC_SHA256,
-      NONE,
     ].freeze
 
     REGISTRY = {}
