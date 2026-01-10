@@ -8,6 +8,8 @@ module Crussh
       field :always_display, :boolean
       field :message, :string
       field :language, :string, default: ""
+
+      def always_display? = @always_display
     end
   end
 end

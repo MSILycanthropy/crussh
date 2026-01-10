@@ -17,7 +17,7 @@ module Crussh
 
     Pty = ::Data.define(:term, :width, :height, :pixel_width, :pixel_height, :modes)
 
-    def initialize(session:, id:, remote_id:, remote_window_size:, local_window_size:, max_packet_size:)
+    def initialize(session:, id:, remote_id:, remote_window_size:, local_window_size:, max_packet_size:, buffer_size:)
       @session = session
       @id = id
       @remote_id = remote_id
@@ -26,6 +26,7 @@ module Crussh
         session:,
         remote_id:,
         window_size: local_window_size,
+        buffer_size:,
       )
 
       @writer = Writer.new(
@@ -100,14 +101,14 @@ module Crussh
     end
 
     class Reader
-      def initialize(session:, remote_id:, window_size:)
+      def initialize(session:, remote_id:, window_size:, buffer_size:)
         @session = session
         @remote_id = remote_id
         @window_size = window_size
         @window_threshold = window_size / 2
         @bytes_consumed = 0
 
-        @events = Async::Queue.new
+        @events = Async::Queue.new(limit: buffer_size)
         @buffer = "".b
 
         @eof = false

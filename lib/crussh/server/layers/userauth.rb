@@ -8,6 +8,7 @@ module Crussh
           @session = session
           @authenticated_user = nil
           @attempts = 0
+          @first_attempt = true
         end
 
         attr_reader :authenticated_user
@@ -178,10 +179,18 @@ module Crussh
           )
         end
 
-        def handle_failed_auth(request, task: Async::Task.current)
+        def handle_failed_auth(request)
           @attempts += 1
 
-          task.sleep(config.auth_rejection_time) if config.auth_rejection_time&.positive?
+          rejection_time = if initial?(request)
+            config.auth_rejection_time_initial
+          else
+            config.auth_rejection_time
+          end
+
+          @first_attempt = false
+
+          sleep(rejection_time) if rejection_time&.positive?
 
           packet = Protocol::UserauthFailure.new(authentications: SUPPORTED_METHODS)
           @session.write_packet(packet)
@@ -202,6 +211,10 @@ module Crussh
           writer.string(pk_data.algorithm)
           writer.string(pk_data.key_blob)
           writer.to_s
+        end
+
+        def initial?(request)
+          @first_attempt && request.none?
         end
       end
     end

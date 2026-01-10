@@ -120,6 +120,7 @@ module Crussh
             remote_window_size: window_size,
             local_window_size: config.window_size,
             max_packet_size: [max_packet_size, config.max_packet_size].min,
+            buffer_size: config.channel_buffer_size,
           )
 
           @channels[id] = channel

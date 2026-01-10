@@ -50,9 +50,14 @@ module Crussh
       end
 
       @config.validate!
+
+      @gatekeeper = Gatekeeper.new(
+        max_connections: @config.max_connections,
+        max_unauthenticated: @config.max_unauthenticated,
+      )
     end
 
-    attr_reader :config
+    attr_reader :config, :gatekeeper
 
     def run
       Logger.info(self, "Starting server", host: config.host, port: config.port)
@@ -129,6 +134,14 @@ module Crussh
 
       Logger.info(self, "New connection", peer:)
 
+      if @gatekeeper.block?
+        Logger.warn(self, "Connection rejected, limit reached", peer: peer, **@tracker.stats)
+        socket.close
+        return
+      end
+
+      socket.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1) if config.nodelay
+
       session = Session.new(socket, server: self)
       session.start
 
@@ -136,8 +149,9 @@ module Crussh
     rescue => e
       Logger.error(self, "Connection error", error: e.message)
     ensure
+      @gatekeeper.disconnect!(was_authenticated: !session&.user.nil?)
       begin
-        socket.close
+        socket.close unless socket.closed?
       rescue
         nil
       end

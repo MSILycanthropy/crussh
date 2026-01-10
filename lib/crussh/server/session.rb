@@ -13,6 +13,8 @@ module Crussh
         @bytes_written = 0
         @last_kex_time = Time.now
         @algorithms = nil
+
+        @heartbeat = nil
       end
 
       attr_reader :client_version, :socket, :server, :user, :id
@@ -27,6 +29,10 @@ module Crussh
         userauth = run_layer(Layers::Userauth)
         @user = userauth.authenticated_user
 
+        @server.gatekeeper.authenticate!
+
+        start_heartbeat
+
         run_layer(Layers::Connection)
 
         Logger.info(self, "Session established", user: @user)
@@ -40,12 +46,14 @@ module Crussh
         Logger.error(self, "Internal Server Error", e)
         disconnect(:by_application, "Internal error")
       ensure
+        stop_heartbeat
         close
       end
 
       def disconnect(reason, description = "")
         message = Protocol::Disconnect.build(reason, description)
         write_raw_packet(message)
+        stop_heartbeat
         close
       end
 
@@ -66,6 +74,8 @@ module Crussh
       def read_packet
         start_rekey if rekey?
 
+        @heartbeat&.record_activity!
+
         loop do
           packet = read_raw_packet
           message_type = packet.getbyte(0)
@@ -75,7 +85,7 @@ module Crussh
             next
           when Protocol::DEBUG
             message = Protocol::Debug.parse(packet)
-            Logger.debug(self, "Client debug", message: message.message) if message.always_display
+            Logger.debug(self, "Client debug", message: message.message) if message.always_display?
             next
           when Protocol::KEXINIT
             rekey(packet)
@@ -146,6 +156,18 @@ module Crussh
         @bytes_read = 0
         @bytes_written = 0
         @last_kex_time = Time.now
+      end
+
+      def start_heartbeat
+        return if config.keepalive_interval.nil?
+
+        @heartbeat = Heartbeat.new(self, interval: config.keepalive_interval, max: config.keepalive_max)
+
+        @heartbeat.start
+      end
+
+      def stop_heartbeat
+        @heartbeat&.stop
       end
 
       def run_layer(layer)
