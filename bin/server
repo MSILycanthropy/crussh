@@ -4,6 +4,52 @@
 require "bundler/setup"
 require "crussh"
 
+class ShellHandler < Crussh::Handler
+  def handle
+    puts "Hello, #{user}!"
+    puts "Type 'exit' to quit."
+    puts
+
+    each_line(prompt: "> ", echo: pty?) do |line|
+      case line.strip
+      when "exit"
+        break
+      when ""
+        next
+      else
+        puts "You said: #{line}"
+      end
+    end
+
+    puts "Goodbye!"
+    exit_status(0)
+    close
+  end
+end
+
+class ExecHandler < Crussh::Handler
+  def setup(command)
+    @command = command
+  end
+
+  def handle
+    puts "Executing: #{@command}"
+
+    IO.popen(@command, err: [:child, :out]) do |io|
+      IO.copy_stream(io, channel)
+    end
+
+    status = $CHILD_STATUS
+    if status.signaled?
+      exit_signal(Signal.signame(status.termsig), core_dumped: status.coredump?)
+    else
+      exit_status(status.exitstatus)
+    end
+
+    close
+  end
+end
+
 class DevServer < Crussh::Server
   configure do |config|
     config.host = "0.0.0.0"
@@ -18,69 +64,15 @@ class DevServer < Crussh::Server
   end
 
   authenticate :publickey do |username, key|
-    Logger.debug(self, "Accepting key", user: username, fingerprint: key.fingerprint)
+    Crussh::Logger.debug(self, "Accepting key", user: username, fingerprint: key.fingerprint)
     true
   end
 
-  def shell(channel)
-    channel.puts "Hello, #{channel.session.user}!"
-    channel.puts "Type 'exit' to quit."
-    channel.puts
+  accept :pty
+  accept :env, only: ["TERM", "LANG", "LC_*"]
 
-    buffer = +""
-
-    catch(:done) do
-      channel.each do |event|
-        case event
-        in Crussh::Channel::Data(data:)
-          data.each_char do |char|
-            case char
-            when "\u0003"
-              throw(:done)
-            when "\r", "\n"
-              line = buffer.strip
-              buffer = +""
-
-              case line
-              when "exit"
-                throw(:done)
-              when ""
-              else
-                channel.puts "You said: #{line}"
-              end
-            when "\u007F", "\b"
-              buffer = buffer.chop
-            else
-              buffer << char
-            end
-          end
-        in Crussh::Channel::EOF | Crussh::Channel::Closed
-          throw(:done)
-        end
-      end
-    end
-
-    channel.puts "Goodbye!"
-    channel.exit_status(0)
-    channel.close
-  end
-
-  def exec(channel, command)
-    channel.puts "Executing: #{command}"
-
-    IO.popen(command, err: [:child, :out]) do |io|
-      IO.copy_stream(io, channel)
-    end
-
-    status = $CHILD_STATUS
-    if status.signaled?
-      channel.exit_signal(Signal.signame(status.termsig), core_dumped: status.coredump?)
-    else
-      channel.exit_status(status.exitstatus)
-    end
-
-    channel.close
-  end
+  handle :shell, ShellHandler
+  handle :exec, ExecHandler
 end
 
 Sync do

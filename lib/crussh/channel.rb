@@ -9,7 +9,13 @@ module Crussh
     DEFAULT_WINDOW_SIZE = 2 * 1024 * 1024
     DEFAULT_MAX_PACKET_SIZE = 32_768
 
-    Data = ::Data.define(:data)
+    Data = ::Data.define(:data) do
+      def each_key(parser: KeyParser.new, &block)
+        return enum_for(:each_key, parser: parser) unless block_given?
+
+        parser.parse(data).each(&block)
+      end
+    end
     ExtendedData = ::Data.define(:data, :type)
     WindowChange = ::Data.define(:width, :height, :pixel_width, :pixel_height)
     Signal = ::Data.define(:name)

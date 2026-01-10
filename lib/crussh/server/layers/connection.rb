@@ -245,30 +245,30 @@ module Crussh
         end
 
         def shell_request(channel)
-          return false unless server.respond_to?(:shell)
+          return false unless server.has_handler?(:shell)
 
           Async do
-            server.shell(channel)
+            server.dispatch_handler(:shell, channel, @session)
           end
 
           true
         end
 
         def exec_request(channel, message)
-          return false unless server.respond_to?(:exec)
+          return false unless server.has_handler?(:exec)
 
           Async do
-            server.exec(channel, message.command)
+            server.dispatch_handler(:exec, channel, @session, message.command)
           end
 
           true
         end
 
         def subsystem_request(channel, message)
-          return false unless server.respond_to?(:subsystem)
+          return false unless server.has_handler?(:subsystem)
 
           Async do
-            server.subsystem(channel, message.subsystem_name)
+            server.dispatch_handler(:subsystem, channel, @session, message.subsystem_name)
           end
 
           true

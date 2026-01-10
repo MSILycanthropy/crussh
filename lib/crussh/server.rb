@@ -29,6 +29,36 @@ module Crussh
         @auth_handlers ||= {}
       end
 
+      def accept(*types, only: nil, except: nil, if: nil, unless: nil, &block)
+        rule = RequestRule.accept(
+          only: only,
+          except: except,
+          if: binding.local_variable_get(:if),
+          unless: binding.local_variable_get(:unless),
+          &block
+        )
+
+        types.each { |type| request_rules[type] = rule }
+      end
+
+      def reject(*types)
+        rule = RequestRule.reject
+
+        types.each { |type| request_rules[type] = rule }
+      end
+
+      def request_rules
+        @request_rules ||= {}
+      end
+
+      def handle(type, handler = nil, &block)
+        handlers[type] = handler || block
+      end
+
+      def handlers
+        @handlers ||= {}
+      end
+
       def inherited(subclass)
         subclass.instance_variable_set(:@config, config.dup)
         subclass.instance_variable_set(:@auth_handlers, auth_handlers.dup)
@@ -95,13 +125,13 @@ module Crussh
     def accepts_channel?(type)
       case type
       when :session
-        respond_to?(:shell) || respond_to?(:exec) || respond_to?(:subsystem)
+        has_handler?(:shell) || has_handler?(:exec) || has_handler?(:subsystem)
       when :direct_tcpip
-        respond_to?(:direct_tcpip)
+        has_handler?(:direct_tcpip)
       when :forwarded_tcpip
-        respond_to?(:forwarded_tcpip)
+        has_handler?(:forwarded_tcpip)
       when :x11
-        respond_to?(:x11)
+        has_handler?(:x11)
       else
         false
       end
@@ -115,16 +145,31 @@ module Crussh
       send(method_name, channel, ...)
     end
 
-    def accepts_request?(type, channel, ...)
-      method_name = :"accept_#{type}_request?"
+    def accepts_request?(type, channel, **params)
+      rule = self.class.request_rules[type]
 
-      return type == :pty unless respond_to?(method_name)
+      return type == :pty if rule.nil?
 
-      send(method_name, channel, ...)
+      rule.allowed?(channel, **params)
     end
 
-    def handle_channel(type, channel, ...)
-      send(type, channel, ...)
+    def dispatch_handler(type, channel, session, *args)
+      handler_class_or_proc = self.class.handlers[type]
+      return false unless handler_class_or_proc
+
+      case handler_class_or_proc
+      when Class
+        handler = handler_class_or_proc.new(channel, session, *args)
+        handler.call
+      when Proc, Method
+        handler_class_or_proc.call(channel, session, *args)
+      end
+
+      true
+    end
+
+    def has_handler?(type)
+      self.class.handlers.key?(type)
     end
 
     private
