@@ -1,6 +1,10 @@
 AllCops:
   TargetRubyVersion: 3.2
 
+plugins:
+  - rubocop-yard
+  - rubocop-md
+
 inherit_gem:
   rubocop-shopify: rubocop.yml
 
@@ -9,3 +13,6 @@ Style/StringLiterals:
 
 Style/StringLiteralsInInterpolation:
   EnforcedStyle: double_quotes
+
+Markdown:
+  Autodetect: false

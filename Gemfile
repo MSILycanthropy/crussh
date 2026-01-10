@@ -11,4 +11,6 @@ gem "rake"
 gem "rake-compiler"
 
 gem "rubocop"
+gem "rubocop-yard"
+gem "rubocop-md"
 gem "rubocop-shopify"
