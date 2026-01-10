@@ -2,6 +2,7 @@
 
 require "English"
 require "io/stream"
+require "async/semaphore"
 
 module Crussh
   class Channel
@@ -273,6 +274,7 @@ module Crussh
         @channel = channel
 
         @window_condition = Async::Condition.new
+        @semaphore = Async::Semaphore.new(1)
 
         @eof_sent = false
         @closed = false
@@ -284,12 +286,38 @@ module Crussh
         @channel.pty? ? "\r\n" : "\n"
       end
 
-      def adjust_window(bytes)
+      def adjust_window(...) = @semaphore.acquire { adjust_window_inner(...) }
+      def write(...) = @semaphore.acquire { write_inner(...) }
+      def send_eof = @semaphore.acquire { send_eof_inner }
+      def close = @semaphore.acquire { close_inner }
+
+      private
+
+      def adjust_window_inner(bytes)
         @window_size += bytes
         @window_condition.signal
       end
 
-      def write(data)
+      def close_inner
+        return if @closed
+
+        send_eof_inner unless @eof_sent
+        @closed = true
+
+        message = Protocol::ChannelClose.new(recipient_channel: @remote_id)
+        @session.write_packet(message)
+      end
+
+      def send_eof_inner
+        return if @eof_sent
+
+        @eof_sent = true
+
+        message = Protocol::ChannelEof.new(recipient_channel: @remote_id)
+        @session.write_packet(message)
+      end
+
+      def write_inner(data)
         raise ::IOError, "channel closed" if @closed
         raise ::IOError, "EOF already sent" if @eof_sent
 
@@ -315,25 +343,6 @@ module Crussh
 
         bytes_written
       end
-
-      def send_eof
-        return if @eof_sent
-
-        @eof_sent = true
-
-        message = Protocol::ChannelEof.new(recipient_channel: @remote_id)
-        @session.write_packet(message)
-      end
-
-      def close
-        return if @closed
-
-        send_eof unless @eof_sent
-        @closed = true
-
-        message = Protocol::ChannelClose.new(recipient_channel: @remote_id)
-        @session.write_packet(message)
-      end
     end
 
     class Stderr
@@ -342,9 +351,14 @@ module Crussh
       def initialize(session:, remote_id:)
         @session = session
         @remote_id = remote_id
+        @semaphore = Async::Semaphore.new(1)
       end
 
-      def write(data)
+      def write(...) = @semaphore.acquire { write_inner(...) }
+
+      private
+
+      def write_inner(data)
         data = data.to_s.b
 
         message = Protocol::ChannelExtendedData.new(
