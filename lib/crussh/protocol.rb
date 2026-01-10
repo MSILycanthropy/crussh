@@ -52,6 +52,8 @@ module Crussh
     CHANNEL_SUCCESS = 99
     CHANNEL_FAILURE = 100
 
+    KEX_STRICT_SERVER = "kex-strict-s-v00@openssh.com"
+
     class Message
       class << self
         def message_type(type = nil)

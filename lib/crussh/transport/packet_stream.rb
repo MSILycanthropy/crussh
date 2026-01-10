@@ -17,13 +17,8 @@ module Crussh
         @writer = Writer.new(@stream)
       end
 
-      def read
-        @reader.read
-      end
-
-      def write(data)
-        @writer.write(data)
-      end
+      def read = @reader.read
+      def write(...) = @writer.write(...)
 
       def enable_encryption(opening_key, sealing_key)
         @reader.enable_encryption(opening_key)
@@ -35,8 +30,12 @@ module Crussh
         @writer.enable_compression(write_compressor)
       end
 
-      def last_read_sequence
-        @reader.last_sequence
+      def last_read_sequence = @reader.last_sequence
+      def sequence_wrapped? = @reader.sequence_wrapped?
+
+      def reset_sequence
+        @reader.reset_sequence
+        @writer.reset_sequence
       end
 
       class Writer
@@ -71,6 +70,10 @@ module Crussh
 
         def enable_compression(compressor)
           @compressor = compressor
+        end
+
+        def reset_sequence
+          @sequence = 0
         end
 
         private
@@ -120,6 +123,7 @@ module Crussh
 
           @sequence = 0
           @last_sequence = 0
+          @wrapped = false
 
           @compressor = Compression::None.new
         end
@@ -152,9 +156,18 @@ module Crussh
           @compressor = compressor
         end
 
+        def reset_sequence
+          @sequence = 0
+          @last_sequence = 0
+          @wrapped = 0
+        end
+
+        def sequence_wrapped? = @wrapped
+
         private
 
         def increment_sequence
+          @wrapped = true if @sequence == 0xFFFFFFFF
           @sequence = (@sequence + 1) & 0xFFFFFFFF
         end
 

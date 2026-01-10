@@ -140,7 +140,7 @@ module Crussh
         return
       end
 
-      socket.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1) if config.nodelay
+      socket.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1) if config.nodelay?
 
       session = Session.new(socket, server: self)
       session.start

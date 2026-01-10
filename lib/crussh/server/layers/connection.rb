@@ -105,11 +105,6 @@ module Crussh
         end
 
         def create_channel(remote_id:, window_size:, max_packet_size:)
-          if !config.max_channels_per_session.nil? && @channels.size >= config.max_channels_per_session
-            Logger.warn(self, "Channel limit reached", current: @channels.size, max: config.max_channels_per_session)
-            return
-          end
-
           id = @next_channel_id
           @next_channel_id += 1
 

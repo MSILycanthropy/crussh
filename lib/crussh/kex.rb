@@ -2,10 +2,15 @@
 
 module Crussh
   module Kex
+    STRICT_SERVER = "kex-strict-s"
+    STRICT_SERVER_OPENSSH = "kex-strict-s-v00@openssh.com"
+    STRICT_CLIENT = "kex-strict-c"
+    STRICT_CLIENT_OPENSSH = "kex-strict-c-v00@openssh.com"
+
     CURVE25519_SHA256 = "curve25519-sha256"
     CURVE25519_SHA256_LIBSSH = "curve25519-sha256@libssh.org"
 
-    DEFAULT = [CURVE25519_SHA256, CURVE25519_SHA256_LIBSSH]
+    DEFAULT = [CURVE25519_SHA256, CURVE25519_SHA256_LIBSSH, STRICT_SERVER, STRICT_SERVER_OPENSSH]
 
     REGISTRY = {
       CURVE25519_SHA256 => Curve25519,

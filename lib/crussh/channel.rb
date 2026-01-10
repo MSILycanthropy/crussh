@@ -108,7 +108,7 @@ module Crussh
         @window_threshold = window_size / 2
         @bytes_consumed = 0
 
-        @events = Async::Queue.new(limit: buffer_size)
+        @events = Async::LimitedQueue.new(buffer_size)
         @buffer = "".b
 
         @eof = false

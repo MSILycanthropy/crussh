@@ -84,9 +84,7 @@ module Crussh
         self
       end
 
-      def nodelay?
-        nodelay
-      end
+      def nodelay? = @nodelay
 
       private
 
@@ -113,7 +111,6 @@ module Crussh
 
         raise ConfigError, "window_size must be positive" if @window_size <= 0
         raise ConfigError, "channel_buffer_size must be positive" if @channel_buffer_size <= 0
-        raise ConfigError, "event_buffer_size must be positive" if @event_buffer_size <= 0
       end
 
       def validate_timeouts!

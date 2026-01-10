@@ -15,12 +15,16 @@ module Crussh
         @algorithms = nil
 
         @heartbeat = nil
+
+        @strict_kex = false
       end
 
       attr_reader :client_version, :socket, :server, :user, :id
       attr_accessor :algorithms
+      attr_writer :strict_kex
 
       def config = @server.config
+      def strict_kex? = @strict_kex
 
       def start
         transport = run_layer(Layers::Transport)
@@ -126,6 +130,8 @@ module Crussh
       end
 
       def last_read_sequence = @packet_stream.last_read_sequence
+      def reset_sequence = @packet_stream.reset_sequence
+      def sequence_wrapped? = @packet_stream.sequence_wrapped?
 
       private
 
