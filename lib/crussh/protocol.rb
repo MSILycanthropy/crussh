@@ -23,6 +23,7 @@ module Crussh
     DEBUG           = 4
     SERVICE_REQUEST = 5
     SERVICE_ACCEPT  = 6
+    EXT_INFO        = 7
 
     KEXINIT         = 20
     NEWKEYS         = 21
@@ -51,6 +52,9 @@ module Crussh
     CHANNEL_REQUEST = 98
     CHANNEL_SUCCESS = 99
     CHANNEL_FAILURE = 100
+
+    PING = 192
+    PONG = 193
 
     KEX_STRICT_SERVER = "kex-strict-s-v00@openssh.com"
 

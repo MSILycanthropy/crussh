@@ -7,7 +7,7 @@ module Crussh
 
       field :request_type, :string
       field :want_reply, :boolean, default: false
-      field :request_data, :remaining
+      field :request_data, :remaining, default: ""
 
       def tcpip_forward?
         request_type == "tcpip-forward"

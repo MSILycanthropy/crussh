@@ -298,6 +298,8 @@ module Crussh
           message = Protocol::GlobalRequest.parse(packet)
 
           accepted = case message.request_type
+          when Heartbeat::KEEPALIVE_REQUEST
+            true
           when "tcpip-forward"
             tcpip_forward = message.tcpip_forward
 

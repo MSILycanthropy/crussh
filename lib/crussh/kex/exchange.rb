@@ -5,6 +5,9 @@ module Crussh
     # TODO: Technically this is just for the server,
     # so maybe we move it to be in the server module scope
     class Exchange
+      PING_EXTENSION = "ping@openssh.com"
+      SERVER_SIGNATURE_ALGORITHMS = "server-sig-algs"
+
       def initialize(session)
         @session = session
         @session_id = session.id
@@ -22,7 +25,13 @@ module Crussh
         @client_version = client_version
         @client_kexinit_payload = read_initial_kexinit
 
-        perform_full_key_exchange
+        client_kexinit = Protocol::KexInit.parse(@client_kexinit_payload)
+
+        validate_strictness!(client_kexinit)
+
+        perform_full_key_exchange(client_kexinit)
+
+        send_ext_info if client_supports_ext_info?(client_kexinit)
       end
 
       def start_rekey
@@ -38,17 +47,14 @@ module Crussh
 
       def rekey(client_kexinit_payload:)
         @client_kexinit_payload = client_kexinit_payload
+        client_kexinit = Protocol::KexInit.parse(@client_kexinit_payload)
 
-        perform_full_key_exchange
+        perform_full_key_exchange(client_kexinit)
       end
 
       private
 
-      def perform_full_key_exchange
-        client_kexinit = Protocol::KexInit.parse(@client_kexinit_payload)
-
-        validate_strictness!(client_kexinit) if initial?
-
+      def perform_full_key_exchange(client_kexinit)
         server_kexinit = Protocol::KexInit.from_preferred(config.preferred)
         @server_kexinit_payload = server_kexinit.serialize
         @session.write_raw_packet(server_kexinit)
@@ -131,6 +137,18 @@ module Crussh
         Logger.info(self, "Keys exchanged", cipher: @algorithms.cipher_server_to_client)
       end
 
+      def send_ext_info
+        signature_algorithms = config.preferred.host_key.join(",")
+
+        extensions = {
+          SERVER_SIGNATURE_ALGORITHMS => signature_algorithms,
+          PING_EXTENSION => "0",
+        }
+
+        ext_info = Protocol::ExtInfo.new(extensions: extensions)
+        @session.write_packet(ext_info)
+      end
+
       def read_kex_packet(expected_type)
         validate_sequence_hasnt_wrapped! if strict_kex? && initial?
 
@@ -187,7 +205,11 @@ module Crussh
       end
 
       def client_supports_strict?(client_kexinit)
-        client_kexinit.kex_algorithms.insersect?([STRICT_CLIENT, STRICT_CLIENT_OPENSSH])
+        client_kexinit.kex_algorithms.intersect?([STRICT_CLIENT, STRICT_CLIENT_OPENSSH])
+      end
+
+      def client_supports_ext_info?(client_kexinit)
+        client_kexinit.kex_algorithms.include?(EXT_INFO_CLIENT)
       end
 
       def kex_message?(type)

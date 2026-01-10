@@ -2,6 +2,8 @@
 
 module Crussh
   class Heartbeat
+    KEEPALIVE_REQUEST = "keepalive@openssh.com"
+
     def initialize(session, interval:, max:)
       @session = session
       @interval = interval
@@ -46,7 +48,10 @@ module Crussh
     private
 
     def send_keepalive
-      @session.write_packet(Protocol::Ignore.new)
+      message = Protocol::GlobalRequest.new(
+        request_type: KEEPALIVE_REQUEST,
+      )
+      @session.write_packet(message)
     rescue IOError, Errno::ECONNRESET, ConnectionClosed
       stop
     end

@@ -91,6 +91,9 @@ module Crussh
             message = Protocol::Debug.parse(packet)
             Logger.debug(self, "Client debug", message: message.message) if message.always_display?
             next
+          when Protocol::PING
+            pong(packet)
+            next
           when Protocol::KEXINIT
             rekey(packet)
             next
@@ -147,6 +150,13 @@ module Crussh
         kex = Kex::Exchange.new(self)
         kex.start_rekey
         reset_rekey_tracking
+      end
+
+      def pong(ping)
+        ping = Protocol::Ping.parse(packet)
+        pong = Protocol::Pong.new(data: ping.data)
+
+        write_packet(pong)
       end
 
       def rekey(client_kexinit_payload)
