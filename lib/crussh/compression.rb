@@ -32,11 +32,11 @@ module Crussh
     class Zlib
       def initialize
         @deflator = ::Zlib::Deflate.new
-        @inflate = ::Zlib::Inflate.new
+        @inflator = ::Zlib::Inflate.new
       end
 
       def deflate(data) = @deflator.deflate(data, ::Zlib::SYNC_FLUSH)
-      def inflate(data) = @deflator.inflate(data)
+      def inflate(data) = @inflator.inflate(data)
     end
   end
 end

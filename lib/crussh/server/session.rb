@@ -71,12 +71,6 @@ module Crussh
         Logger.error(self, "Error", e)
       end
 
-      def host_key
-        return if @algorithms.nil?
-
-        @host_key ||= @config.host_keys.find { |key| key.algorithm == @algorithms.host_key }
-      end
-
       def read_packet
         start_rekey if rekey?
 

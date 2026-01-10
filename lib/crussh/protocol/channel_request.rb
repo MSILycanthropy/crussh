@@ -21,6 +21,7 @@ module Crussh
       def local_flow_control? = request_type == "xon-xoff"
       def signal? = request_type == "signal"
       def exit_status? = request_type == "exit-status"
+      def exit_signal? = request_Type == "exit-signal"
 
       def pty
         return @pty_data if @pty_data

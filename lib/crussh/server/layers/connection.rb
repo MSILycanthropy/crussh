@@ -126,7 +126,7 @@ module Crussh
           case channel_type
           when :session
             nil
-          when direct_tcpip
+          when :direct_tcpip
             server.direct_tcpip(channel, target)
           when :forwarded_tcpip
             server.forwarded_tcpip(channel, target)
@@ -173,7 +173,7 @@ module Crussh
           server.channel_eof(channel) if server.respond_to?(:channel_eof)
         end
 
-        def window_adjust
+        def window_adjust(packet)
           message = Protocol::ChannelWindowAdjust.parse(packet)
           channel = @channels[message.recipient_channel]
           return if channel.nil?

@@ -29,7 +29,7 @@ module Crussh
     class HmacSha1 < HmacShaAlgorithm
       NAME = "hmac-sha1"
 
-      def key_len = 20
+      def key_length = 20
       def mac_len = 20
       def digest_name = "SHA1"
     end

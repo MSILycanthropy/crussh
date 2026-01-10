@@ -17,6 +17,7 @@ module Crussh
 
     def start(task: Async::Task.current)
       return if @interval.nil?
+      return if @task&.running?
 
       @task = task.async do
         loop do

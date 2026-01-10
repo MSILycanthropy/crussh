@@ -41,7 +41,7 @@ module Crussh
         @server_kexinit_payload = server_kexinit.serialize
         @session.write_raw_packet(server_kexinit)
 
-        @client_kexinit_payload = @session.read_packet_raw
+        @client_kexinit_payload = @session.read_raw_packet
         client_kexinit = Protocol::KexInit.parse(@client_kexinit_payload)
 
         negotiate_and_exchange(client_kexinit, server_kexinit)
@@ -102,7 +102,6 @@ module Crussh
         signature = host_key.sign(@exchange_hash)
 
         kex_ecdh_reply = Protocol::KexEcdhReply.new(
-          algorithm: @algorithms.host_key,
           public_host_key: host_key.public_key_blob,
           public_key: server_public,
           signature: signature,

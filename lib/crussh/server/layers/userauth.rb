@@ -29,7 +29,7 @@ module Crussh
 
         def config = @session.config
         def server = @session.server
-        def session_id = @session.session_id
+        def session_id = @session.id
 
         def supported_methods
           server.auth_methods.map(&:to_s)
@@ -118,7 +118,7 @@ module Crussh
           when :publickey
             handle_publickey(request)
           when :keyboard_interactive
-            handle_keyboard_interactive(request)
+            :failure
           else
             Logger.warn(self, "Unknown auth method", method: request.method_name)
             :failure
@@ -192,7 +192,7 @@ module Crussh
 
           sleep(rejection_time) if rejection_time&.positive?
 
-          packet = Protocol::UserauthFailure.new(authentications: SUPPORTED_METHODS)
+          packet = Protocol::UserauthFailure.new(authentications: supported_methods)
           @session.write_packet(packet)
 
           return if @attempts < config.max_auth_attempts

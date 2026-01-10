@@ -135,7 +135,7 @@ module Crussh
       Logger.info(self, "New connection", peer:)
 
       if @gatekeeper.block?
-        Logger.warn(self, "Connection rejected, limit reached", peer: peer, **@tracker.stats)
+        Logger.warn(self, "Connection rejected, limit reached", peer: peer, **@gatekeeper.stats)
         socket.close
         return
       end

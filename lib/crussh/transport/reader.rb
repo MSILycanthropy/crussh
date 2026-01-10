@@ -88,8 +88,8 @@ module Crussh
 
       private
 
-      def ensure_remaining!(length)
-        return if @position + length <= @data.bytesize
+      def ensure_remaining!(n)
+        return if @position + n <= @data.bytesize
 
         raise IncompletePacket, "Need #{n} bytes but only #{remaining_bytes} available"
       end
