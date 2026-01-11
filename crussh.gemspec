@@ -32,14 +32,14 @@ Gem::Specification.new do |spec|
 
   # Uncomment to register a new dependency of your gem
   spec.add_dependency("activesupport", ">= 8.0")
-  spec.add_dependency("async", "~> 2.35")
-  spec.add_dependency("ed25519", "~> 1.4")
-  spec.add_dependency("io-endpoint", "~> 0.16")
-  spec.add_dependency("io-stream", "~> 0.11")
-  spec.add_dependency("rb_sys", "~> 0.9.103")
-  spec.add_dependency("ssh_data", "~> 2.0.0")
-  spec.add_dependency("x25519", "~> 1.0.10")
-  spec.add_dependency("zeitwerk", "~> 2.6e")
+  spec.add_dependency("async", ">= 2.0")
+  spec.add_dependency("ed25519", ">= 1.0")
+  spec.add_dependency("io-endpoint", ">= 0.1")
+  spec.add_dependency("io-stream", ">= 0.1")
+  spec.add_dependency("rb_sys", ">= 0.9")
+  spec.add_dependency("ssh_data", ">= 2.0.0")
+  spec.add_dependency("x25519", ">= 1.0.10")
+  spec.add_dependency("zeitwerk", ">= 2")
 
   # For more information and examples about making a new gem, check out our
   # guide at: https://bundler.io/guides/creating_gem.html
