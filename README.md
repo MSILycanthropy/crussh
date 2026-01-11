@@ -3,7 +3,7 @@
 [![Gem Version](https://badge.fury.io/rb/crussh.svg)](https://badge.fury.io/rb/crussh)
 [![Build Status](https://github.com/MSILycanthropy/crussh/actions/workflows/main.yml/badge.svg)](https://github.com/MSILycanthropy/crussh/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Ruby Version](https://img.shields.io/badge/ruby-%3E%3D%203.2-ruby.svg)](https://www.ruby-lang.org)
+[![Ruby Version](https://img.shields.io/badge/ruby-%3E%3D%203.3-ruby.svg)](https://www.ruby-lang.org)
 
 A low-level SSH server library for Ruby.
 
