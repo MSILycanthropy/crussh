@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+VERSION=$1
+
+printf "module Crussh\n  VERSION = \"$VERSION\"\nend\n" > ./lib/crussh/version.rb
+bundle i
+git add Gemfile.lock lib/crussh/version.rb
+git commit -m "chore: Bump version for $VERSION"
+git push
+git tag v$VERSION
+git push --tags
