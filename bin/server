@@ -6,22 +6,17 @@ require "crussh"
 
 class ShellHandler < Crussh::Handler
   def handle
-    puts "Hello, #{user}!"
-    puts "Type 'exit' to quit."
+    puts "Echo server. Type 'quit' to exit."
     puts
 
-    each_line(prompt: "> ", echo: pty?) do |line|
-      case line.strip
-      when "exit"
-        break
-      when ""
-        next
-      else
-        puts "You said: #{line}"
-      end
+    loop do
+      text = gets.chomp
+
+      break if text == "quit"
+
+      puts(text)
     end
 
-    puts "Goodbye!"
     exit_status(0)
     close
   end
@@ -33,8 +28,6 @@ class ExecHandler < Crussh::Handler
   end
 
   def handle
-    puts "Executing: #{@command}"
-
     IO.popen(@command, err: [:child, :out]) do |io|
       IO.copy_stream(io, channel)
     end
@@ -57,19 +50,11 @@ class DevServer < Crussh::Server
     config.generate_host_keys!
   end
 
-  banner "Welcome to Crussh!\n\n"
-
   authenticate :none do |_|
     true
   end
 
-  authenticate :publickey do |username, key|
-    Crussh::Logger.debug(self, "Accepting key", user: username, fingerprint: key.fingerprint)
-    true
-  end
-
   accept :pty
-  accept :env, only: ["TERM", "LANG", "LC_*"]
 
   handle :shell, ShellHandler
   handle :exec, ExecHandler

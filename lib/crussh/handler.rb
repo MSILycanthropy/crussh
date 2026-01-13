@@ -25,6 +25,9 @@ module Crussh
     end
 
     def initialize(channel, session, ...)
+      channel.__internal_set_on_resize { |width, height| handle_resize(width, height) }
+      channel.__internal_set_on_signal { |name| handle_signal(name) }
+
       @channel = channel
       @session = session
 
@@ -39,7 +42,8 @@ module Crussh
       rescue_with_handler(e) || raise
     end
 
-    def resize(...); end
+    def handle_resize(width, height); end
+    def handle_signal(name); end
 
     private
 
@@ -66,53 +70,6 @@ module Crussh
     def send_eof = channel.send_eof
     def exit_status(...) = channel.exit_status(...)
     def exit_signal(...) = channel.exit_signal(...)
-
-    def each_event(...) = channel.each(...)
-
-    def each_key(&block)
-      return enum_for(:each_key) unless block_given?
-
-      parser = Channel::KeyParser.new
-
-      each_event do |event|
-        case event
-        when Channel::Data
-          event.each_key(parser: parser, &block)
-        when Channel::WindowChange
-          resize(event.width, event.height) if respond_to?(:resize, true)
-        when Channel::EOF
-          yield :eof
-        when Channel::Closed
-          return
-        end
-      end
-    end
-
-    def each_line(prompt: "", echo: true)
-      return enum_for(:each_line, prompt:, echo:) unless block_given?
-
-      buffer = LineBuffer.new(channel, echo:)
-      print_prompt(prompt)
-
-      each_key do |key|
-        case key
-        when :enter
-          puts if echo
-          line = buffer.flush
-          yield line unless line.empty?
-          print_prompt(prompt)
-        when :interrupt
-          puts if echo
-          buffer.clear
-          print_prompt(prompt)
-        when :eof
-          puts if echo
-          return
-        else
-          buffer.handle(key)
-        end
-      end
-    end
 
     def print_prompt(prompt)
       case prompt

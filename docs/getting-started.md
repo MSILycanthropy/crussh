@@ -135,22 +135,6 @@ class ShellHandler < Crussh::Handler
     puts "Type 'help' for commands, 'exit' to quit."
     puts
 
-    each_line(prompt: "> ") do |line|
-      case line.strip
-      when "help"
-        puts "Commands: help, whoami, time, exit"
-      when "whoami"
-        puts user
-      when "time"
-        puts Time.now
-      when "exit"
-        break
-      when ""
-        # ignore empty lines
-      else
-        puts "Unknown command: #{line}"
-      end
-    end
 
     puts "Goodbye!"
     exit_status(0)
@@ -158,8 +142,6 @@ class ShellHandler < Crussh::Handler
   end
 end
 ```
-
-Now you have a simple interactive shell with line editing. See [Input Handling](guides/input-handling.md) for more information on how `each_line` works.
 
 ## Adding Authentication
 
@@ -221,4 +203,3 @@ CONSOLE_LEVEL=debug ruby server.rb
 - [Configuration](guides/configuration.md) — All the server options
 - [Authentication](guides/authentication.md) — Password auth, multi-factor, and more
 - [Handlers](guides/handlers.md) — Callbacks, error handling, and testing
-- [Input Handling](guides/input-handling.md) — The three levels of input abstraction

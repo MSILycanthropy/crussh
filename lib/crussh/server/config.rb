@@ -21,7 +21,6 @@ module Crussh
         @limits = Limits.new
         @max_packet_size = DEFAULT_PACKET_SIZE
         @window_size = DEFAULT_WINDOW_SIZE
-        @channel_buffer_size = 10
 
         @max_auth_attempts = 6
         @auth_rejection_time = 1
@@ -47,7 +46,6 @@ module Crussh
         :limits,
         :max_packet_size,
         :window_size,
-        :channel_buffer_size,
         :max_auth_attempts,
         :auth_rejection_time,
         :auth_rejection_time_initial,
@@ -110,7 +108,6 @@ module Crussh
         end
 
         raise ConfigError, "window_size must be positive" if @window_size <= 0
-        raise ConfigError, "channel_buffer_size must be positive" if @channel_buffer_size <= 0
       end
 
       def validate_timeouts!

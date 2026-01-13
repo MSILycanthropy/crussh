@@ -46,7 +46,7 @@ For most cases, inherit from `Crussh::Handler`. It provides a clean DSL, lifecyc
 ```ruby
 class ShellHandler < Crussh::Handler
   def handle
-    puts "Hello, #{user}!" # Instead of channel.puts
+    puts "Hello, #{user}!"
     exit_status(0)
     close
   end
@@ -155,16 +155,18 @@ When a client requests a pseudo-terminal, `pty` contains:
 
 ## I/O Methods
 
-These methods communicate with the client's terminal:
+The channel is a standard Ruby IO-like object. Use familiar methods to communicate with the client:
 
-| Method                | Description                         |
-| --------------------- | ----------------------------------- |
-| `puts(*args)`         | Write lines (adds newline)          |
-| `print(*args)`        | Write without newline               |
-| `write(data)`         | Write raw bytes                     |
-| `read(length = nil)`  | Read bytes                          |
-| `gets(sep = "\n")`    | Read until separator                |
-| `readpartial(maxlen)` | Read available bytes (non-blocking) |
+| Method                   | Description                          |
+| ------------------------ | ------------------------------------ |
+| `puts(*args)`            | Write lines (adds newline)           |
+| `print(*args)`           | Write without newline                |
+| `write(data)`            | Write raw bytes                      |
+| `read(length = nil)`     | Read bytes                           |
+| `gets(sep = "\n")`       | Read until separator                 |
+| `readpartial(maxlen)`    | Read available bytes                 |
+| `read_nonblock(len)`     | Non-blocking read                    |
+| `wait_readable(timeout)` | Wait for input with optional timeout |
 
 All I/O respects PTY settings — `puts` uses `\r\n` when a PTY is active.
 
@@ -186,6 +188,34 @@ def handle
   # ... do work ...
   exit_status(0)
   close
+end
+```
+
+## Resize and Signal Handling
+
+Override these methods to respond to terminal resize and signals:
+
+```ruby
+class ShellHandler < Crussh::Handler
+  def handle
+    # ...
+  end
+
+  def handle_resize(width, height)
+    # Called when client resizes terminal
+    @terminal&.resize(height, width)
+    redraw
+  end
+
+  def handle_signal(name)
+    # Called when client sends a signal
+    case name
+    when "INT"
+      # Handle Ctrl+C
+    when "TERM"
+      close
+    end
+  end
 end
 ```
 
@@ -301,37 +331,6 @@ class MyHandler < Crussh::Handler
 end
 ```
 
-## Input Methods
-
-For reading user input, see [Input Handling](input-handling.md). Quick overview:
-
-```ruby
-class MyHandler < Crussh::Handler
-  def handle
-    # High-level: line editing with prompt
-    each_line(prompt: "> ") do |line|
-      process(line)
-    end
-
-    # Mid-level: parsed keystrokes
-    each_key do |key|
-      case key
-      when :enter then submit
-      when String then insert(key)
-      end
-    end
-
-    # Low-level: raw events
-    each_event do |event|
-      case event
-      in Channel::Data(data:)
-        handle_raw(data)
-      end
-    end
-  end
-end
-```
-
 ## Stderr
 
 Write to the client's stderr:
@@ -352,37 +351,35 @@ class ShellHandler < Crussh::Handler
   rescue_from IOError, with: :handle_disconnect
 
   def handle
-    puts "Welcome, #{user}!"
-    puts "Type 'help' for commands, 'exit' to quit."
-    puts
+    terminal = Vtx::Terminal.new(input: channel, output: channel)
+    @terminal = terminal
 
-    each_line(prompt: prompt) do |line|
-      case line.strip
-      when "help"
-        puts "Commands: help, whoami, exit"
-      when "whoami"
-        puts user
-      when "exit"
+    terminal.puts "Welcome, #{user}!"
+    terminal.puts "Press 'q' to quit."
+    terminal.flush
+
+    terminal.each_event do |event|
+      case event
+      when Vtx::Events::Key(char: "q")
         break
-      else
-        puts "Unknown: #{line}" unless line.empty?
+      when Vtx::Events::Key(char:)
+        terminal.puts "You pressed: #{char}"
+        terminal.flush
       end
     end
 
-    puts "Goodbye!"
+    terminal.puts "Goodbye!"
+    terminal.flush
+
     exit_status(0)
     close
   end
 
-  def resize(width, height)
-    @width = width
+  def handle_resize(width, height)
+    @terminal&.resize(height, width)
   end
 
   private
-
-  def prompt
-    "#{user}> "
-  end
 
   def log_connect
     logger.info("Shell started", user:, term: pty&.term)
@@ -400,6 +397,5 @@ end
 
 ## Next Steps
 
-Learn how to read user input at different levels of abstraction:
-
-**Next**: [Input Handling](input-handling.md) — Events, keystrokes and line editing
+- Learn about [VTX](https://github.com/example/vtx) for building terminal UIs
+- See [Server Configuration](server.md) for authentication and request handling

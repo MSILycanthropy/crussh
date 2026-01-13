@@ -115,7 +115,6 @@ module Crussh
             remote_window_size: window_size,
             local_window_size: config.window_size,
             max_packet_size: [max_packet_size, config.max_packet_size].min,
-            buffer_size: config.channel_buffer_size,
           )
 
           @channels[id] = channel
@@ -142,7 +141,7 @@ module Crussh
           channel = @channels[message.recipient_channel]
           return if channel.nil?
 
-          channel.push_event(Channel::Data.new(data: message.data))
+          channel.push_data(message.data)
         end
 
         def channel_extended_data(packet)
@@ -169,8 +168,6 @@ module Crussh
 
           channel.close unless channel.closed?
           @channels.delete(channel.id)
-          channel.push_event(Channel::Closed.new)
-          server.channel_eof(channel) if server.respond_to?(:channel_eof)
         end
 
         def window_adjust(packet)

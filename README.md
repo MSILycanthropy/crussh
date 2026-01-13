@@ -36,8 +36,12 @@ A low-level SSH server library for Ruby.
   - `direct-tcpip`
   - `forwarded-tcpip`
   - `x11`
-- Other: - Strict key exchange (KEX) - `server-sig-algs` extension - `ping@openssh.com` extension - OpenSSH keepalive handling.
-</details>
+- Other:
+  - Strict key exchange (KEX)
+  - `server-sig-algs` extension
+  - `ping@openssh.com` extension
+  - OpenSSH keepalive handling.
+  </details>
 
 ## Why SSH?
 
@@ -122,7 +126,7 @@ ssh localhost -p 2222
 - **Async-native** — Built on [Async](https://github.com/socketry/async) for concurrent connections and channels
 - **Clean DSL** — Rails-inspired configuration and authentication
 - **Handler-based** — Separate classes for shell, exec, and subsystem requests
-- **Low-level access** — Drop down to raw channel I/O when you need control
+- **Standard IO** — Channels implement Ruby's IO interface, works with any IO-compatible library
 
 ## Authentication
 
@@ -150,10 +154,11 @@ Handlers are plain Ruby classes that process SSH requests. They inherit from `Cr
 class ShellHandler < Crussh::Handler
   def handle
     puts "Welcome, #{user}!"
-    puts "Type 'exit' to quit."
+    puts "Type 'quit' to exit."
 
-    each_line(prompt: "$ ") do |line|
-      break if line == "exit"
+    while (line = gets)
+      line = line.chomp
+      break if line == "quit"
 
       puts "You typed: #{line}"
     end
@@ -197,8 +202,30 @@ Handlers have access to:
 - `pty` — PTY info (term, width, height) if requested
 - `env` — environment variables from the client
 - `channel` — the underlying channel for advanced use
-- I/O methods: `puts`, `print`, `gets`, `read`, `write`
+- I/O methods: `puts`, `print`, `gets`, `read`, `write`, `read_nonblock`, `wait_readable`
 - Lifecycle: `close`, `send_eof`, `exit_status`, `exit_signal`
+
+### Resize and Signal Handling
+
+Override these methods to respond to terminal resize and signals:
+
+```ruby
+class ShellHandler < Crussh::Handler
+  def handle
+    # ...
+  end
+
+  def handle_resize(width, height)
+    # Called when client resizes terminal
+    redraw
+  end
+
+  def handle_signal(name)
+    # Called when client sends a signal (e.g., "INT", "TERM")
+    close if name == "TERM"
+  end
+end
+```
 
 ### Callbacks
 
@@ -227,45 +254,50 @@ class MyHandler < Crussh::Handler
 end
 ```
 
-## Input Handling
+## IO Interface
 
-Crussh provides three levels of abstraction for reading events on the channel:
+Crussh channels implement Ruby's standard IO interface. If it works with regular Ruby IO, it works with Crussh:
 
 ```ruby
 class MyHandler < Crussh::Handler
   def handle
-    # Low-level: raw SSH events
-    each_event do |event|
+    while (line = gets)
+      line = line.chomp
+      break if line == "quit"
+
+      puts line
+    end
+
+    exit_status(0)
+    close
+  end
+end
+```
+
+Since channels are IO-compatible, you can pass them directly to libraries that expect IO objects:
+
+```ruby
+class ShellHandler < Crussh::Handler
+  def handle
+    # Use with VTX for terminal UIs
+    terminal = Vtx::Terminal.new(input: channel, output: channel)
+
+    terminal.each_event do |event|
       case event
-      in Channel::Data(data:)
-        # raw bytes from client
-      in Channel::WindowChange(width:, height:)
-        # terminal resized
-      in Channel::EOF
-        # client sent EOF
+      when Vtx::Events::Key(char: "q")
+        break
+      when Vtx::Events::Key(char:)
+        terminal.puts "You pressed: #{char}"
+        terminal.flush
       end
     end
 
-    # Mid-level: parsed keystrokes
-    each_key do |key|
-      case key
-      when :arrow_up then move_up
-      when :enter then submit
-      when String then insert(key)
-      end
-    end
-
-    # High-level: line editing with prompt
-    each_line(prompt: "> ") do |line|
-      process(line)
-    end
+    exit_status(0)
+    close
   end
 
-  # Called automatically by each_key/each_line on window resize
-  def resize(width, height)
-    @width = width
-    @height = height
-    redraw
+  def handle_resize(width, height)
+    @terminal&.resize(height, width)
   end
 end
 ```
@@ -350,13 +382,7 @@ sudo systemctl start myapp
 
 ## Documentation
 
-_Coming soon_
-
-- Getting Started
-- Configuration Reference
-- Authentication Guide
-- Writing Handlers
-- API Reference
+See our [Getting Started](docs/getting-started.md)
 
 ## Contributing
 

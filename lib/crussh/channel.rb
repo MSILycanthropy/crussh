@@ -9,22 +9,11 @@ module Crussh
     DEFAULT_WINDOW_SIZE = 2 * 1024 * 1024
     DEFAULT_MAX_PACKET_SIZE = 32_768
 
-    Data = ::Data.define(:data) do
-      def each_key(parser: KeyParser.new, &block)
-        return enum_for(:each_key, parser: parser) unless block_given?
-
-        parser.parse(data).each(&block)
-      end
-    end
-    ExtendedData = ::Data.define(:data, :type)
     WindowChange = ::Data.define(:width, :height, :pixel_width, :pixel_height)
     Signal = ::Data.define(:name)
-    EOF = ::Data.define
-    Closed = ::Data.define
-
     Pty = ::Data.define(:term, :width, :height, :pixel_width, :pixel_height, :modes)
 
-    def initialize(session:, id:, remote_id:, remote_window_size:, local_window_size:, max_packet_size:, buffer_size:)
+    def initialize(session:, id:, remote_id:, remote_window_size:, local_window_size:, max_packet_size:)
       @session = session
       @id = id
       @remote_id = remote_id
@@ -33,7 +22,7 @@ module Crussh
         session:,
         remote_id:,
         window_size: local_window_size,
-        buffer_size:,
+        channel: self,
       )
 
       @writer = Writer.new(
@@ -45,9 +34,8 @@ module Crussh
       )
 
       @pty = nil
+      @raw = false
       @env = {}
-      @events = Async::Queue.new
-      @read_buffer = "".b
     end
 
     attr_reader :session, :id, :remote_id, :pty, :env
@@ -56,6 +44,20 @@ module Crussh
     def pty? = !@pty.nil?
     def eof? = @reader.eof?
     def closed? = @writer.closed?
+
+    def tty? = pty?
+
+    def raw? = @raw
+
+    def raw!
+      @raw = true
+      self
+    end
+
+    def cooked!
+      @raw = false
+      self
+    end
 
     def read(...) = @reader.read(...)
     def readpartial(...) = @reader.readpartial(...)
@@ -74,6 +76,10 @@ module Crussh
 
     def send_eof = @writer.send_eof
     def close = @writer.close
+
+    def push_data(data) = @reader.push_data(data)
+    def push_eof = @reader.push_eof
+    def adjust_remote_window(bytes) = @writer.adjust_window(bytes)
 
     def stderr
       @stderr ||= Stderr.new(session:, remote_id:)
@@ -95,9 +101,6 @@ module Crussh
       @session.write_packet(message)
     end
 
-    def push_event(event) = @reader.push_event(event)
-    def adjust_remote_window(bytes) = @writer.adjust_window(bytes)
-
     def set_env(name, value)
       @env[name] = value
     end
@@ -107,118 +110,59 @@ module Crussh
       push_event(window_change)
     end
 
+    # @api private
+    def __internal_set_on_resize(&block) = @on_resize = block
+    # @api private
+    def __internal_set_on_signal(&block) = @on_signal = block
+
     class Reader
-      def initialize(session:, remote_id:, window_size:, buffer_size:)
+      def initialize(session:, remote_id:, window_size:, channel:)
+        @channel = channel
         @session = session
         @remote_id = remote_id
         @window_size = window_size
         @window_threshold = window_size / 2
         @bytes_consumed = 0
 
-        @events = Async::LimitedQueue.new(buffer_size)
-        @buffer = "".b
+        @reader, @writer = IO.pipe
+        @reader.nonblock = true
+
+        @writer.binmode
+        @writer.nonblock = true
 
         @eof = false
-        @closed = false
       end
 
       def eof? = @eof
-      def closed? = @closed
 
-      def push_event(event)
-        @events.enqueue(event)
+      def read(length = nil, outbuf = nil) = readpartial(length || 4096, outbuf)
+
+      def push_data(data)
+        if @channel.pty? && !@channel.raw?
+          data = data.gsub("\r\n", "\n")
+            .gsub("\r", "\n")
+        end
+
+        consume_window(data.bytesize)
+        @writer.write(data)
       end
 
-      def each
-        return enum_for(:each) unless block_given?
+      def readpartial(...) = @reader.readpartial(...)
+      def read_nonblock(...) = @reader.read_nonblock(...)
+      def wait_readable(...) = @reader.wait_readable(...)
+      def gets(...) = @reader.gets(...)
 
-        loop do
-          event = @events.dequeue
-          yield event
-          break if event.is_a?(Closed)
-        end
+      def push_eof
+        @eof = true
+        @writer.close
       end
 
-      def read(length = nil)
-        return drain_buffer(length) if length && @buffer.bytesize >= length
-
-        loop do
-          event = @events.dequeue
-
-          case event
-          when Data(data:)
-            consume_window(data.bytesize)
-            @buffer << data
-            return drain_buffer(length) if length && @buffer.bytesize >= length
-          when EOF
-            @eof = true
-
-            return @buffer.empty? ? nil : drain_buffer(length)
-          when Closed
-            @closed = true
-
-            return @buffer.empty? ? nil : drain_buffer(length)
-          end
-        end
-      end
-
-      def readpartial(maxlen, outbuf = nil)
-        outbuf ||= "".b
-        outbuf.clear
-
-        if @buffer.bytesize > 0
-          outbuf << drain_buffer(maxlen)
-          return outbuf
-        end
-
-        loop do
-          event = @events.dequeue
-
-          case event
-          when Data(data:)
-            consume_window(data.bytesize)
-            @buffer << data
-            outbuf << drain_buffer(maxlen)
-            return outbuf
-          when EOF
-            @eof = true
-            raise ::EOFError, "end of file reached"
-          when Closed
-            @closed = true
-            raise ::IOError, "channel closed"
-          end
-        end
-      end
-
-      def gets(sep = $INPUT_RECORD_SEPARATOR, limit = nil)
-        loop do
-          if (index = @buffer.index(sep))
-            return @buffer.slice!(0, index + sep.bytesize)
-          end
-
-          return drain_buffer if limit && @buffer.bytesize >= limit
-
-          event = @events.dequeue
-
-          case event
-          when Data
-            consume_window(event.data.bytesize)
-            @buffer << event.data
-          when EOF
-            @eof = true
-            return @buffer.empty? ? nil : @buffer.slice!(0..-1)
-          when Closed
-            @closed = true
-            return @buffer.empty? ? nil : @buffer.slice!(0..-1)
-          end
-        end
+      def close
+        @writer.close unless @writer.closed?
+        @reader.close unless @reader.closed?
       end
 
       private
-
-      def drain_buffer(length = nil)
-        @buffer.slice!(0, length || @buffer.bytesize)
-      end
 
       def consume_window(bytes)
         @bytes_consumed += bytes
@@ -289,7 +233,7 @@ module Crussh
       def closed? = @closed
 
       def line_ending
-        @channel.pty? ? "\r\n" : "\n"
+        @channel.pty? && !@channel.raw? ? "\r\n" : "\n"
       end
 
       def adjust_window(...) = @semaphore.acquire { adjust_window_inner(...) }
@@ -370,7 +314,7 @@ module Crussh
         message = Protocol::ChannelExtendedData.new(
           recipient_channel: @remote_id,
           data_type_code: 1,
-          data: data,
+          data:,
         )
         @session.write_packet(message)
 

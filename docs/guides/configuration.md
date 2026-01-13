@@ -176,14 +176,6 @@ Maximum packet size in bytes. Must be between 1024 and 262144.
 c.max_packet_size = 32_768 # Default: 32KB
 ```
 
-`channel_buffer_size`
-
-Number of events to buffer per channel. Affects backpressure behavior.
-
-```ruby
-c.channel_buffer_size = 10 # Default: 10
-```
-
 ## Authentication Timing
 
 `auth_rejection_time`
